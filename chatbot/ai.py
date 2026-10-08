@@ -23,9 +23,11 @@ MAX_QUESTION_CHARS = 300
 MAX_OUTPUT_TOKENS = 300
 CITIES = ["Cairo", "Giza", "Alexandria", "Remote"]
 
-HELP = ("I can answer questions about new postings, salaries, top skills, top companies, "
-        "postings per city and posting counts. For example: \"What does a data analyst "
-        "earn in Cairo?\" or \"Which skills do data engineers need most?\"")
+HELP = ("I can answer questions about new postings, salaries, top skills, skills that go with "
+        "another skill, top companies, postings per city or role, posting counts and which role, city, "
+        "company or skill pays the most. For example: \"What does a data analyst earn in "
+        "Cairo?\", \"Which skills do data engineers need most?\" or \"Which city pays data "
+        "engineers the most?\"")
 
 SYSTEM_PROMPT = (
     "You route questions about data job postings in Egypt (the data is synthetic) to one "
@@ -39,15 +41,23 @@ _ROLE = {"type": "string", "enum": SEED_ROLES}
 _LIMIT = {"type": "integer", "minimum": 1, "maximum": MAX_LIMIT}
 _DAYS = {"type": "integer", "minimum": 1, "maximum": MAX_DAYS}
 _CITY = {"type": "string", "enum": CITIES}
+_SKILL = {"type": "string", "description": "A skill name such as Python, SQL, Airflow or Power BI."}
+_MIN_SALARY = {"type": "number", "minimum": 0, "description": "Minimum monthly salary in EGP."}
+_GROUP = {"type": "string", "enum": ["role", "city", "company", "skill"]}
+_ORDER = {"type": "string", "enum": ["highest", "lowest"]}
 
 # name -> (parameter schemas, required parameter names)
 PARAMS = {
-    "new_postings": ({"role": _ROLE, "days": _DAYS, "limit": _LIMIT}, []),
-    "salary_for_role": ({"role": _ROLE, "city": _CITY}, ["role"]),
-    "top_skills": ({"role": _ROLE, "limit": _LIMIT}, []),
-    "top_companies": ({"role": _ROLE, "limit": _LIMIT}, []),
-    "jobs_by_city": ({"role": _ROLE}, []),
-    "count_postings": ({"role": _ROLE, "city": _CITY}, []),
+    "new_postings": ({"role": _ROLE, "city": _CITY, "skill": _SKILL, "days": _DAYS, "limit": _LIMIT}, []),
+    "salary_for_role": ({"role": _ROLE, "city": _CITY, "skill": _SKILL}, []),
+    "top_skills": ({"role": _ROLE, "city": _CITY, "limit": _LIMIT}, []),
+    "skills_with": ({"skill": _SKILL, "role": _ROLE, "city": _CITY, "limit": _LIMIT}, ["skill"]),
+    "top_companies": ({"role": _ROLE, "city": _CITY, "skill": _SKILL, "limit": _LIMIT}, []),
+    "jobs_by_city": ({"role": _ROLE, "skill": _SKILL}, []),
+    "jobs_by_role": ({"city": _CITY, "skill": _SKILL}, []),
+    "count_postings": ({"role": _ROLE, "city": _CITY, "skill": _SKILL, "min_salary": _MIN_SALARY}, []),
+    "top_paying": ({"group_by": _GROUP, "role": _ROLE, "city": _CITY, "skill": _SKILL,
+                    "order": _ORDER, "limit": _LIMIT}, []),
 }
 
 TOOLS = [
@@ -128,9 +138,18 @@ def answer_question(con, question, chooser, log_path=None):
     function, params = choice.get("function"), choice.get("params") or {}
     if function is None:
         _log(log_path, question, None, {}, False)
-        return {"text": HELP, "function": None, "params": {}, "ok": False}
+        hint = choice.get("hint")
+        return {"text": (hint + "\n\n" if hint else "") + HELP,
+                "function": None, "params": {}, "ok": False}
 
     answer = run(con, function, params)
     _log(log_path, question, function, params, answer["ok"])
-    text = to_text(answer) if answer["ok"] else answer["message"] + "\n\n" + HELP
+    if not answer["ok"]:
+        text = answer["message"] + "\n\n" + HELP
+    else:
+        text = to_text(answer)
+        if choice.get("understood"):
+            text = "Understood as: " + choice["understood"] + "\n" + text
+        for note in choice.get("notes") or []:
+            text += "\nNote: " + note
     return {"text": text, "function": function, "params": params, "ok": answer["ok"]}

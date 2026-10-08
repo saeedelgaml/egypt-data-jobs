@@ -161,6 +161,7 @@ def test_every_answer_survives_an_empty_database(empty):
     assert result(empty, "top_companies")["companies"] == []
     assert result(empty, "jobs_by_city")["cities"] == []
     assert result(empty, "count_postings")["total"] == 0
+    assert result(empty, "top_paying")["groups"] == []
 
 
 def test_salary_says_so_when_no_posting_lists_one(empty):
@@ -214,11 +215,11 @@ def test_limit_is_kept_between_1_and_the_maximum(con):
 def test_unknown_answer_unknown_parameter_and_missing_parameter(con):
     assert run(con, "delete_everything")["ok"] is False
     assert "takes" in run(con, "top_skills", {"colour": "red"})["message"]
-    assert "needs: role" in run(con, "salary_for_role")["message"]
+    assert "needs: skill" in run(con, "skills_with")["message"]
 
 
 def test_run_never_raises_even_with_odd_values(con):
-    assert run(con, "new_postings", {"role": None})["ok"] is False
+    assert run(con, "new_postings", {"role": "chef"})["ok"] is False
     assert run(con, "new_postings", {"days": "x"})["ok"] is False
 
 
@@ -272,3 +273,162 @@ def test_ask_answers_from_a_database_file(tmp_path, capsys):
     assert f"{total} postings for all roles." in capsys.readouterr().out
     assert ask.main(["count_postings", "role=chef"], db_path=path) == 0
     assert "I do not know the role" in capsys.readouterr().out
+
+
+# ---- filters and the two newer answers, checked against the answer key ------
+
+def test_count_with_a_skill_filter_matches_the_answer_key(con, truth):
+    expected = sum(1 for _, t in truth if t["role"] == "data_analyst"
+                   and t["skills_visible"] and "SQL" in t["skills"])
+    assert result(con, "count_postings", role="data_analyst", skill="sql")["total"] == expected
+
+
+def test_count_with_a_minimum_salary_matches_the_answer_key(con, truth):
+    expected = sum(1 for _, t in truth if t["salary_visible"]
+                   and (t["salary_min"] + t["salary_max"]) / 2 >= 30000)
+    got = result(con, "count_postings", min_salary=30000)
+    assert got["total"] == expected and got["min_salary"] == 30000
+
+
+def test_all_filters_together(con, truth):
+    expected = sum(1 for _, t in truth if t["role"] == "data_engineer" and t["city"] == "Cairo"
+                   and t["skills_visible"] and "Python" in t["skills"]
+                   and t["salary_visible"] and (t["salary_min"] + t["salary_max"]) / 2 >= 25000)
+    got = result(con, "count_postings", role="data_engineer", city="Cairo", skill="Python",
+                 min_salary=25000)
+    assert got["total"] == expected
+
+
+def test_salary_for_a_skill_without_a_role(con, truth):
+    listed = [t for _, t in truth if t["skills_visible"] and "Python" in t["skills"]
+              and t["salary_visible"]]
+    mids = [(t["salary_min"] + t["salary_max"]) / 2 for t in listed]
+    got = result(con, "salary_for_role", skill="Python")
+    assert got["role"] is None
+    assert got["with_salary"] == len(listed)
+    assert got["typical"] == round(statistics.median(mids))
+
+
+def test_top_companies_and_cities_with_a_skill(con, truth):
+    chosen = [t for _, t in truth if t["skills_visible"] and "Airflow" in t["skills"]]
+    companies = Counter(t["company"] for t in chosen if t["company"])
+    got = result(con, "top_companies", skill="Airflow", limit=3)
+    assert [(c["company"], c["postings"]) for c in got["companies"]] == ranked(companies, 3)
+    cities = Counter(t["city"] for t in chosen if t["city"])
+    got = result(con, "jobs_by_city", skill="Airflow")
+    assert [(c["city"], c["postings"]) for c in got["cities"]] == ranked(cities, 10)
+
+
+def test_top_skills_in_one_city(con, truth):
+    chosen = [t for _, t in truth if t["role"] == "data_analyst" and t["city"] == "Giza"
+              and t["skills_visible"] and t["skills"]]
+    counts = Counter(skill for t in chosen for skill in t["skills"])
+    got = result(con, "top_skills", role="data_analyst", city="Giza", limit=4)
+    assert got["postings_with_skills"] == len(chosen)
+    assert [(s["skill"], s["postings"]) for s in got["skills"]] == ranked(counts, 4)
+
+
+def test_skills_with_matches_the_answer_key(con, truth):
+    chosen = [t for _, t in truth if t["skills_visible"] and "Airflow" in t["skills"]]
+    counts = Counter(s for t in chosen for s in t["skills"] if s != "Airflow")
+    got = result(con, "skills_with", skill="airflow", limit=5)
+    assert got["skill"] == "Airflow"
+    assert got["postings_with_skill"] == len(chosen)
+    assert [(s["skill"], s["postings"]) for s in got["skills"]] == ranked(counts, 5)
+    assert all(s["skill"] != "Airflow" for s in got["skills"])
+    assert got["skills"][0]["share"] == round(got["skills"][0]["postings"] / len(chosen), 2)
+
+
+def test_skills_with_inside_one_role(con, truth):
+    chosen = [t for _, t in truth if t["role"] == "data_engineer"
+              and t["skills_visible"] and "Spark" in t["skills"]]
+    counts = Counter(s for t in chosen for s in t["skills"] if s != "Spark")
+    got = result(con, "skills_with", skill="Spark", role="data_engineer", limit=3)
+    assert [(s["skill"], s["postings"]) for s in got["skills"]] == ranked(counts, 3)
+
+
+def _typical_by(truth, key, keep=lambda t: True):
+    groups = {}
+    for _, t in truth:
+        if t["salary_visible"] and keep(t):
+            for value in key(t):
+                groups.setdefault(value, []).append((t["salary_min"] + t["salary_max"]) / 2)
+    return {g: (round(statistics.median(m)), len(m)) for g, m in groups.items() if len(m) >= 3}
+
+
+@pytest.mark.parametrize("group_by,key", [
+    ("role", lambda t: [t["role"]]),
+    ("city", lambda t: [t["city"]] if t["city"] else []),
+    ("company", lambda t: [t["company"]] if t["company"] else []),
+    ("skill", lambda t: t["skills"] if t["skills_visible"] else []),
+])
+def test_top_paying_matches_the_answer_key(con, truth, group_by, key):
+    expected = _typical_by(truth, key)
+    order = sorted(expected.items(), key=lambda kv: (-kv[1][0], kv[0]))[:5]
+    got = result(con, "top_paying", group_by=group_by)
+    assert [(g["group"], g["typical"], g["with_salary"]) for g in got["groups"]] == [
+        (name, typical, n) for name, (typical, n) in order]
+
+
+def test_top_paying_lowest_first_and_with_filters(con, truth):
+    expected = _typical_by(truth, lambda t: [t["city"]] if t["city"] else [],
+                           keep=lambda t: t["role"] == "data_engineer")
+    order = sorted(expected.items(), key=lambda kv: (kv[1][0], kv[0]))[:3]
+    got = result(con, "top_paying", group_by="city", role="data_engineer", order="lowest", limit=3)
+    assert [(g["group"], g["typical"]) for g in got["groups"]] == [(n, v[0]) for n, v in order]
+
+
+def test_top_paying_skips_groups_with_too_few_salaries(empty):
+    for i in range(2):
+        empty.execute("INSERT INTO jobs (job_id, title, role, city, salary_min, salary_max, "
+                      "posted_date, first_seen_date) VALUES (?, 'x', 'data_engineer', 'Cairo', "
+                      "90000, 100000, '2026-10-01', '2026-10-01')", [f"j{i}"])
+    assert result(empty, "top_paying", group_by="city")["groups"] == []
+    assert "at least 3" in to_text(run(empty, "top_paying", {"group_by": "city"}))
+
+
+def test_new_postings_for_all_roles_and_a_skill_filter(con):
+    everyone = result(con, "new_postings", role=None, days=2, limit=MAX_LIMIT)
+    engineers = result(con, "new_postings", role="data_engineer", days=2, limit=MAX_LIMIT)
+    assert everyone["total"] > engineers["total"] > 0
+    with_sql = result(con, "new_postings", role=None, skill="SQL", days=2, limit=MAX_LIMIT)
+    assert 0 < with_sql["total"] < everyone["total"]
+
+
+def test_new_filters_refuse_unknown_values(con):
+    assert run(con, "count_postings", {"skill": "cobol"})["ok"] is False
+    assert "Python" in run(con, "count_postings", {"skill": "cobol"})["message"]
+    assert run(con, "count_postings", {"min_salary": "lots"})["ok"] is False
+    assert run(con, "count_postings", {"min_salary": -5})["ok"] is False
+    assert run(con, "top_paying", {"group_by": "salary; DROP TABLE jobs"})["ok"] is False
+    assert run(con, "top_paying", {"order": "sideways"})["ok"] is False
+    assert run(con, "skills_with", {"skill": "x'; DROP TABLE jobs; --"})["ok"] is False
+    assert con.execute("SELECT COUNT(*) FROM jobs").fetchone()[0] > 0
+
+
+def test_text_for_the_new_answers(con):
+    text = to_text(run(con, "top_paying", {"group_by": "city", "role": "data_engineer"}))
+    assert text.startswith("Highest typical monthly salary by city for data engineer")
+    text = to_text(run(con, "skills_with", {"skill": "Airflow"}))
+    assert text.startswith("Skills that appear with Airflow in postings")
+    text = to_text(run(con, "count_postings", {"skill": "SQL", "min_salary": 30000}))
+    assert "that list SQL paying at least 30,000 EGP/month" in text
+    text = to_text(run(con, "salary_for_role", {"skill": "Python"}))
+    assert text.startswith("all roles that list Python: typical")
+
+
+def test_jobs_by_role_matches_the_answer_key(con, truth):
+    counts = Counter(t["role"] for _, t in truth if t["role"])
+    got = result(con, "jobs_by_role")
+    assert [(r["role"], r["postings"]) for r in got["roles"]] == ranked(counts, 10)
+
+
+def test_jobs_by_role_in_one_city_adds_up_to_that_city(con, truth):
+    got = result(con, "jobs_by_role", city="Cairo")
+    assert sum(r["postings"] for r in got["roles"]) <= result(con, "count_postings", city="Cairo")["total"]
+    assert to_text(run(con, "jobs_by_role", {"city": "Cairo"})).startswith("Postings by role in Cairo:")
+
+
+def test_jobs_by_role_survives_an_empty_database(empty):
+    assert result(empty, "jobs_by_role")["roles"] == []
+    assert "No postings found" in to_text(run(empty, "jobs_by_role", {}))

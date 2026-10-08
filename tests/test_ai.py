@@ -235,11 +235,20 @@ def test_chat_needs_a_database(tmp_path, capsys):
     assert "run_pipeline.py" in capsys.readouterr().out
 
 
-def test_chat_without_a_key_explains_instead_of_crashing(db_file, capsys, monkeypatch):
-    monkeypatch.setattr(chat, "load_dotenv", lambda: None)
+def test_chat_ai_mode_without_a_key_explains_instead_of_crashing(db_file, capsys, monkeypatch):
+    import dotenv
+    monkeypatch.setattr(dotenv, "load_dotenv", lambda: None)
     monkeypatch.delenv("LLM_API_KEY", raising=False)
-    assert chat.main(["hi"], db_path=db_file) == 1
+    assert chat.main(["--ai", "hi"], db_path=db_file) == 1
     assert ".env" in capsys.readouterr().out
+
+
+def test_chat_is_free_by_default_and_needs_no_key(db_file, capsys, monkeypatch):
+    monkeypatch.delenv("LLM_API_KEY", raising=False)
+    assert chat.main(["how", "many", "postings", "are", "there?"], db_path=db_file) == 0
+    out = capsys.readouterr().out
+    assert "Understood as: number of postings" in out
+    assert "postings for all roles." in out
 
 
 # ---- keys stay out of the repository ----------------------------------------

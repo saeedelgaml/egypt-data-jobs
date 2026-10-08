@@ -1,12 +1,12 @@
 # Egypt data jobs
 
-A pipeline that collects data-job postings, cleans them, stores them in DuckDB, and answers questions about them through a chatbot. The chatbot can list new data engineer postings, show salaries for a role, and name the top skills.
+A pipeline that collects data-job postings, cleans them, stores them in DuckDB, and answers questions about them through a chatbot. The chatbot answers questions typed in plain English about salaries, skills, companies, cities and new postings. It is free to run and needs no account or key.
 
 All data in this repository is synthetic. A small program generates fake job postings with messy city names, salary formats and duplicates, so the cleaning steps have real work to do. No real job board text is stored here, and none of the numbers describe the real Egyptian job market. Company names are invented, and any match with a real company is a coincidence.
 
 ## Status
 
-Phases 1 to 8 are done: the repository layout, the DuckDB tables, the generator for fake job postings, the collector that stores each day's postings, the cleaner that turns them into tidy tables, the manager script that runs both once a day, the six fixed answers the chatbot can give, and an AI layer that reads a typed question and picks one of those answers. The web page comes in a later phase.
+Phases 1 to 8 are done: the repository layout, the DuckDB tables, the generator for fake job postings, the collector that stores each day's postings, the cleaner that turns them into tidy tables, the manager script that runs both once a day, the nine fixed answers the chatbot can give, and a free rule-based router that reads a typed question and picks one of them. An optional AI router is also included. The web page comes in a later phase.
 
 ## Setup
 
@@ -31,25 +31,38 @@ Each run adds one line to `data/pipeline.log` and exits with 0 when it worked an
 
 ## Asking questions
 
-The chatbot can give six answers. Each one is a function in `chatbot/queries.py` that runs one fixed SQL query, so the numbers always come from the database. Salaries are monthly amounts in EGP.
+The chatbot has nine answers. Each one is a function in `chatbot/queries.py` that runs one fixed SQL query, so the numbers always come from the database. Salaries are monthly amounts in EGP. Most answers accept filters for role, city and skill, and `count_postings` also takes a minimum salary.
 
 ```
 python -m chatbot.ask
 python -m chatbot.ask new_postings role=data_engineer days=7
 python -m chatbot.ask salary_for_role role=data_analyst city=Cairo
-python -m chatbot.ask top_skills role=data_engineer limit=5
+python -m chatbot.ask top_paying group_by=city role=data_engineer
 ```
 
-The other three answers are `top_companies`, `jobs_by_city` and `count_postings`. A role or city that does not exist is refused with a message that lists the valid ones. Values are passed to SQL as parameters and never pasted into the query text.
+The other answers are `top_skills`, `skills_with` (skills that appear together with another skill), `top_companies`, `jobs_by_city`, `jobs_by_role` and `count_postings`. A role, city or skill that does not exist is refused with a message that lists the valid ones. Values are passed to SQL as parameters and never pasted into the query text. A ranking in `top_paying` only counts a group that has at least 3 postings with a listed salary.
 
 ## Asking in plain English
 
 ```
 python -m chatbot.chat "what does a data analyst earn in Cairo?"
+python -m chatbot.chat
 ```
 
-An AI model reads the question and picks one of the six answers above, with its parameters. It never sees the database and it does not write the reply. The program runs the chosen function, which checks every value again, and writes the answer from the query result. A question that matches no answer gets a short help message. The model cannot run any query that is not in `chatbot/queries.py`.
+A rule-based router reads the question, fixes small typos, finds the role, city, skill, numbers and time words, and picks one of the nine answers. It is free, runs on your computer and sends nothing anywhere. It can only point at the functions in `chatbot/queries.py`, which check every value again.
 
-Only the typed question is sent to the AI service. No rows and no job text leave the computer. Each question and the answer it was routed to are logged in `data/chat.log`.
+Every answer starts with a line such as `Understood as: salary: data analyst, in Cairo`, so a wrong reading is visible. When a question is not about this data (a role, city or skill that is not here, or a subject unrelated to jobs), the router refuses instead of guessing. When a limit applies, a `Note:` line says so: seniority is not tracked, some job titles are grouped under "other", and most answers do not filter by date.
+
+Limits of this router: it understands the wording it was written for, and unusual phrasing can get a refusal or a different reading than you meant. It cannot answer a question that none of the nine answers covers, and it cannot write new queries. The 30-question test in a later phase will measure how often it is right.
+
+Each question and the answer it was routed to are logged in `data/chat.log`.
+
+### Optional: an AI router
+
+```
+python -m chatbot.chat --ai "what does a data analyst earn in Cairo?"
+```
+
+An AI model picks the answer instead of the rules. It never sees the database and it does not write the reply: the program runs the chosen function and writes the answer from the query result. Only the typed question is sent to the AI service, and the service may charge for it.
 
 To use it, create a file named `.env` in the project folder with the line `LLM_API_KEY=` followed by your key (see `.env.example`). The file is listed in `.gitignore`, and a test fails if a key-like string appears anywhere else in the project. The default model is `claude-haiku-5-5`, which you can change with `LLM_MODEL` in the same file.
