@@ -2,7 +2,7 @@
 
 The page talks only to chatbot.service. It never opens the database, never writes SQL and
 never sends data anywhere. Everything from a visitor or from the database is escaped in
-ui/render.py before it is placed in HTML (see docs/ui-brief.md for the rules).
+ui/render.py before it is placed in HTML (see docs/security-notes.md).
 """
 import random
 import time
