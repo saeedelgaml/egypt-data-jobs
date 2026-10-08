@@ -6,7 +6,7 @@ All data in this repository is synthetic. A small program generates fake job pos
 
 ## Status
 
-Phase 1 is done: the repository layout and a smoke test. The pipeline, database and chatbot come in later phases.
+Phases 1 and 2 are done: the repository layout, a smoke test, and the DuckDB tables. The job generator, cleaning, automation and chatbot come in later phases.
 
 ## Setup
 
