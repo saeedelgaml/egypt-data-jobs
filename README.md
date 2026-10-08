@@ -53,7 +53,7 @@ A rule-based router reads the question, fixes small typos, finds the role, city,
 
 Every answer starts with a line such as `Understood as: salary: data analyst, in Cairo`, so a wrong reading is visible. When a question is not about this data (a role, city or skill that is not here, or a subject unrelated to jobs), the router refuses instead of guessing. When a limit applies, a `Note:` line says so: seniority is not tracked, some job titles are grouped under "other", and most answers do not filter by date.
 
-Limits of this router: it understands the wording it was written for, and unusual phrasing can get a refusal or a different reading than you meant. It cannot answer a question that none of the nine answers covers, and it cannot write new queries. The 30-question test in a later phase will measure how often it is right.
+Limits of this router: it understands the wording it was written for, and unusual phrasing can get a refusal or a different reading than you meant. It cannot answer a question that none of the nine answers covers, and it cannot write new queries. How often it is right on questions it was not built around is in `docs/accuracy.md`: about 80 percent on the first run of three question sets.
 
 Each question and the answer it was routed to are logged in `data/chat.log`.
 

@@ -240,3 +240,55 @@ def test_long_inputs_are_fast(router):
     for text in nasty:
         router(text)
     assert time.perf_counter() - start < 2.0
+
+
+# ---- blind sets -----------------------------------------------------------------
+# Three sets of questions (59, 79 and 71 after removing Franco-Arabic ones, which are not supported) were written by separate assistants that had not seen
+# the router. The first-run scores are in docs/accuracy.md. The failures were fixed afterwards,
+# so these sets are now regression tests, not honest scores.
+
+def _blind(path):
+    import json
+    from pathlib import Path
+    return json.loads((Path(__file__).parent / "data" / path).read_text(encoding="utf-8"))
+
+
+# Questions the router still gets wrong, kept visible on purpose. Each is a known weakness or a
+# label that is arguable, not a hidden failure.
+KNOWN_MISSES = {
+    "blind_set_1.json": set(),
+    "blind_set_2.json": {
+        "so im graduating in june and been doing mostly pandas and sql in uni projects, wondering "
+        "what the data scientist postings ask for the most",
+        "whats the salary for senior data scientists",
+    },
+    "blind_set_3.json": {
+        "is cairo really where everything is for ml?",
+    },
+}
+
+
+def _misses(router, name):
+    wrong = set()
+    for item in _blind(name):
+        choice, expect = router(item["q"]), item["expect"]
+        if expect == "REFUSE":
+            good = choice["function"] is None
+        else:
+            given = {k: v for k, v in choice["params"].items() if v is not None}
+            good = choice["function"] == expect["function"] and given == expect["params"]
+        if not good and not item.get("ambiguous"):
+            wrong.add(item["q"])
+    return wrong
+
+
+@pytest.mark.parametrize("name", sorted(KNOWN_MISSES))
+def test_blind_sets_do_not_get_worse(router, name):
+    assert _misses(router, name) <= KNOWN_MISSES[name]
+
+
+def test_trend_and_advice_questions_are_refused(router):
+    for q in ["did salaries go up", "is the market growing", "should I learn SQL",
+              "how many jobs in the last 6 months", "how many jobs need snowflake",
+              "how many postings does vodafone have"]:
+        assert router(q)["function"] is None, q
