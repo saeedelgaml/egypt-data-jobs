@@ -6,7 +6,7 @@ All data in this repository is synthetic. A small program generates fake job pos
 
 ## Status
 
-Phases 1 to 6 are done: the repository layout, the DuckDB tables, the generator for fake job postings, the collector that stores each day's postings, the cleaner that turns them into tidy tables, and the manager script that runs both once a day. The chatbot comes in later phases.
+Phases 1 to 7 are done: the repository layout, the DuckDB tables, the generator for fake job postings, the collector that stores each day's postings, the cleaner that turns them into tidy tables, the manager script that runs both once a day, and the six fixed answers the chatbot can give. The AI layer that reads a typed question and the web page come in later phases.
 
 ## Setup
 
@@ -28,3 +28,16 @@ python run_pipeline.py
 This collects every day since the last run, up to today, and then cleans the new postings. If the computer was off for a few days, the next run collects the missed days. Running it twice on the same day changes nothing. The first run on an empty database collects only today, unless you pass a start date with `--since 2026-10-01`.
 
 Each run adds one line to `data/pipeline.log` and exits with 0 when it worked and 1 when it failed. On Windows, Task Scheduler can run the command once a day and show that exit code.
+
+## Asking questions
+
+The chatbot can give six answers. Each one is a function in `chatbot/queries.py` that runs one fixed SQL query, so the numbers always come from the database. Salaries are monthly amounts in EGP.
+
+```
+python -m chatbot.ask
+python -m chatbot.ask new_postings role=data_engineer days=7
+python -m chatbot.ask salary_for_role role=data_analyst city=Cairo
+python -m chatbot.ask top_skills role=data_engineer limit=5
+```
+
+The other three answers are `top_companies`, `jobs_by_city` and `count_postings`. A role or city that does not exist is refused with a message that lists the valid ones. Values are passed to SQL as parameters and never pasted into the query text.
