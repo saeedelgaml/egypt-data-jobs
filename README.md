@@ -6,7 +6,7 @@ All data in this repository is synthetic. A small program generates fake job pos
 
 ## Status
 
-Phases 1 to 3 are done: the repository layout, the DuckDB tables, and the generator for fake job postings. Collection, cleaning, automation and the chatbot come in later phases.
+Phases 1 to 4 are done: the repository layout, the DuckDB tables, the generator for fake job postings, and the collector that stores each day's postings. Cleaning, automation and the chatbot come in later phases.
 
 ## Setup
 
