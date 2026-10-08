@@ -6,7 +6,7 @@ All data in this repository is synthetic. A small program generates fake job pos
 
 ## Status
 
-Phases 1 to 7 are done: the repository layout, the DuckDB tables, the generator for fake job postings, the collector that stores each day's postings, the cleaner that turns them into tidy tables, the manager script that runs both once a day, and the six fixed answers the chatbot can give. The AI layer that reads a typed question and the web page come in later phases.
+Phases 1 to 8 are done: the repository layout, the DuckDB tables, the generator for fake job postings, the collector that stores each day's postings, the cleaner that turns them into tidy tables, the manager script that runs both once a day, the six fixed answers the chatbot can give, and an AI layer that reads a typed question and picks one of those answers. The web page comes in a later phase.
 
 ## Setup
 
@@ -41,3 +41,15 @@ python -m chatbot.ask top_skills role=data_engineer limit=5
 ```
 
 The other three answers are `top_companies`, `jobs_by_city` and `count_postings`. A role or city that does not exist is refused with a message that lists the valid ones. Values are passed to SQL as parameters and never pasted into the query text.
+
+## Asking in plain English
+
+```
+python -m chatbot.chat "what does a data analyst earn in Cairo?"
+```
+
+An AI model reads the question and picks one of the six answers above, with its parameters. It never sees the database and it does not write the reply. The program runs the chosen function, which checks every value again, and writes the answer from the query result. A question that matches no answer gets a short help message. The model cannot run any query that is not in `chatbot/queries.py`.
+
+Only the typed question is sent to the AI service. No rows and no job text leave the computer. Each question and the answer it was routed to are logged in `data/chat.log`.
+
+To use it, create a file named `.env` in the project folder with the line `LLM_API_KEY=` followed by your key (see `.env.example`). The file is listed in `.gitignore`, and a test fails if a key-like string appears anywhere else in the project. The default model is `claude-haiku-5-5`, which you can change with `LLM_MODEL` in the same file.

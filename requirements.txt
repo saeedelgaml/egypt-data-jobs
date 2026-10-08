@@ -2,3 +2,4 @@ pandas
 duckdb
 pytest
 python-dotenv
+anthropic
