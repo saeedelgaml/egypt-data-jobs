@@ -26,7 +26,8 @@ ROLE_TITLES = {
     "data_scientist": ["Data Scientist"],
     "ml_engineer": ["Machine Learning Engineer", "ML Engineer"],
     "bi_developer": ["BI Developer", "Power BI Developer", "Business Intelligence Developer"],
-    "other": ["Backend Developer", "Software Engineer", "QA Engineer", "Project Coordinator"],
+    "other": ["Business Analyst", "Database Administrator", "Data Entry Specialist",
+              "Analytics Manager", "Research Analyst", "Reporting Specialist"],
 }
 
 SENIORITY_WEIGHTS = {"junior": 0.30, "mid": 0.45, "senior": 0.25}
@@ -54,11 +55,11 @@ CITY_WEIGHTS = {"Cairo": 0.55, "Giza": 0.20, "Alexandria": 0.12, "Remote": 0.13}
 # and Alexandria.
 CITY_VARIANTS = {
     "Cairo": ["Cairo", "cairo", "New Cairo", "Nasr City, Cairo", "Maadi, Cairo",
-              "Cairo, Egypt", "\u0627\u0644\u0642\u0627\u0647\u0631\u0629"],
+              "Cairo, Egypt", "القاهرة"],
     "Giza": ["Giza", "6th of October", "Sheikh Zayed, Giza", "Giza, Egypt",
-             "\u0627\u0644\u062c\u064a\u0632\u0629"],
+             "الجيزة"],
     "Alexandria": ["Alexandria", "Alex", "Alexandria, Egypt",
-                   "\u0627\u0644\u0625\u0633\u0643\u0646\u062f\u0631\u064a\u0629"],
+                   "الإسكندرية"],
     "Remote": ["Remote", "remote", "Remote (Egypt)", "Work from home"],
 }
 
@@ -84,7 +85,7 @@ ROLE_SKILL_PROBS = {
     "ml_engineer": {"Python": 0.95, "PyTorch": 0.50, "Docker": 0.50, "TensorFlow": 0.40,
                     "AWS": 0.40, "Scikit-learn": 0.40, "SQL": 0.30, "Git": 0.30},
     "bi_developer": {"Power BI": 0.85, "SQL": 0.80, "Excel": 0.50, "Tableau": 0.30, "Azure": 0.20},
-    "other": {"Python": 0.40, "Java": 0.40, "Git": 0.40, "SQL": 0.30, "Excel": 0.20},
+    "other": {"Excel": 0.70, "SQL": 0.60, "Power BI": 0.30, "Python": 0.20, "Tableau": 0.15},
 }
 
 # Other ways a board might write a skill.

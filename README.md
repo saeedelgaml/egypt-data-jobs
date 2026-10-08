@@ -6,7 +6,7 @@ All data in this repository is synthetic. A small program generates fake job pos
 
 ## Status
 
-Phases 1 to 4 are done: the repository layout, the DuckDB tables, the generator for fake job postings, and the collector that stores each day's postings. Cleaning, automation and the chatbot come in later phases.
+Phases 1 to 5 are done: the repository layout, the DuckDB tables, the generator for fake job postings, the collector that stores each day's postings, and the cleaner that turns them into tidy tables. Automation and the chatbot come in later phases.
 
 ## Setup
 
@@ -17,4 +17,4 @@ pip install -r requirements.txt
 pytest
 ```
 
-On Windows, activate the environment with .venv\Scripts\activate.
+On Windows, activate the environment with `.venv\Scripts\activate`.
