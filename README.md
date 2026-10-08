@@ -6,7 +6,7 @@ All data in this repository is synthetic. A small program generates fake job pos
 
 ## Status
 
-Phases 1 to 8 are done: the repository layout, the DuckDB tables, the generator for fake job postings, the collector that stores each day's postings, the cleaner that turns them into tidy tables, the manager script that runs both once a day, the nine fixed answers the chatbot can give, and a free rule-based router that reads a typed question and picks one of them. An optional AI router is also included. The web page comes in a later phase.
+Phases 1 to 9 are done: the repository layout, the DuckDB tables, the generator for fake job postings, the collector that stores each day's postings, the cleaner that turns them into tidy tables, the manager script that runs both once a day, the nine fixed answers the chatbot can give, and a free rule-based router that reads a typed question and picks one of them. An optional AI router is also included. The web page comes in a later phase.
 
 ## Setup
 
@@ -56,6 +56,10 @@ Every answer starts with a line such as `Understood as: salary: data analyst, in
 Limits of this router: it understands the wording it was written for, and unusual phrasing can get a refusal or a different reading than you meant. It cannot answer a question that none of the nine answers covers, and it cannot write new queries. How often it is right on questions it was not built around is in `docs/accuracy.md`: about 80 percent on the first run of three question sets.
 
 Each question and the answer it was routed to are logged in `data/chat.log`.
+
+### For a web page
+
+`chatbot/service.py` is the one door a web page should use. It opens the database read-only, limits how often one visitor can ask, and returns the answer, the numbers, follow-up questions and advice on how to ask. `docs/ui-brief.md` describes the page to build on top of it. `python make_sample_db.py` builds `data/sample.duckdb`, a small synthetic database that is safe to publish.
 
 ### Optional: an AI router
 

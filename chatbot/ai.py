@@ -140,7 +140,8 @@ def answer_question(con, question, chooser, log_path=None):
         _log(log_path, question, None, {}, False)
         hint = choice.get("hint")
         return {"text": (hint + "\n\n" if hint else "") + HELP,
-                "function": None, "params": {}, "ok": False}
+                "function": None, "params": {}, "ok": False, "data": None, "understood": None,
+                "notes": [], "hint": hint}
 
     answer = run(con, function, params)
     _log(log_path, question, function, params, answer["ok"])
@@ -152,4 +153,6 @@ def answer_question(con, question, chooser, log_path=None):
             text = "Understood as: " + choice["understood"] + "\n" + text
         for note in choice.get("notes") or []:
             text += "\nNote: " + note
-    return {"text": text, "function": function, "params": params, "ok": answer["ok"]}
+    return {"text": text, "function": function, "params": params, "ok": answer["ok"],
+            "data": answer.get("result"), "understood": choice.get("understood"),
+            "notes": list(choice.get("notes") or [])}
