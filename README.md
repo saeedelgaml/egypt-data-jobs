@@ -6,7 +6,7 @@ All data in this repository is synthetic. A small program generates fake job pos
 
 ## Status
 
-Phases 1 to 9 are done: the repository layout, the DuckDB tables, the generator for fake job postings, the collector that stores each day's postings, the cleaner that turns them into tidy tables, the manager script that runs both once a day, the nine fixed answers the chatbot can give, and a free rule-based router that reads a typed question and picks one of them. An optional AI router is also included. The web page comes in a later phase.
+Phases 1 to 10 are done: the repository layout, the DuckDB tables, the generator for fake job postings, the collector that stores each day's postings, the cleaner that turns them into tidy tables, the manager script that runs both once a day, the nine fixed answers the chatbot can give, and a free rule-based router that reads a typed question and picks one of them. An optional AI router is also included. A Streamlit web page sits on top of them.
 
 ## Setup
 
@@ -57,7 +57,15 @@ Limits of this router: it understands the wording it was written for, and unusua
 
 Each question and the answer it was routed to are logged in `data/chat.log`.
 
-### For a web page
+### The web page
+
+```
+streamlit run app.py
+```
+
+The page uses `data/jobs.duckdb` when it exists and `data/sample.duckdb` otherwise. It has a search box, clickable example questions grouped by topic, a "How to ask" panel, an "Read as" line that shows how the question was understood, follow-up questions after every answer, and a short note that all data is synthetic. It follows the light or dark setting of the visitor's device and works on a phone. Fonts load from Google Fonts. The page only talks to `chatbot/service.py`, escapes everything it shows, and has tests for that in `tests/test_app.py`.
+
+### The service behind it
 
 `chatbot/service.py` is the one door a web page should use. It opens the database read-only, limits how often one visitor can ask, and returns the answer, the numbers, follow-up questions and advice on how to ask. `docs/ui-brief.md` describes the page to build on top of it. `python make_sample_db.py` builds `data/sample.duckdb`, a small synthetic database that is safe to publish.
 

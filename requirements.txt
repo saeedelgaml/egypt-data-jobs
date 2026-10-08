@@ -3,3 +3,4 @@ duckdb
 pytest
 python-dotenv
 anthropic
+streamlit
