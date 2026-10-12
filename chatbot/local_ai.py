@@ -147,7 +147,10 @@ def validate_sql(sql):
         qualifier = column.table.lower()
         if qualifier and qualifier not in table_aliases and qualifier not in SCHEMA:
             raise UnsafeQuery(f"unknown table or alias {column.table!r}")
+    operators = (exp.Binary, exp.Unary, exp.Predicate, exp.Connector)  # AND, OR, =, IN, ... are not function calls
     for node in tree.find_all(exp.Func):
+        if isinstance(node, operators):
+            continue
         if node.sql_name().upper().replace(" ", "") not in ALLOWED_FUNCTIONS:
             raise UnsafeQuery(f"function {node.sql_name()} is not allowed")
     existing = tree.args.get("limit")

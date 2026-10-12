@@ -166,3 +166,10 @@ def test_chat_cli_does_not_crash_when_ollama_is_down(capsys, tmp_path):
     shutil.copy("data/sample.duckdb", out_db)
     assert chat.main(QUESTION.split(), db_path=out_db) == 0
     assert "I can answer questions about" in capsys.readouterr().out
+
+
+def test_ordinary_operators_are_not_mistaken_for_functions():
+    sql = validate_sql("SELECT a.job_id FROM job_skills a JOIN job_skills b ON a.job_id = b.job_id "
+                       "WHERE a.skill = 'Docker' AND b.skill IN ('Kubernetes') OR NOT a.skill LIKE 'x%' "
+                       "AND a.skill BETWEEN 'A' AND 'Z'")
+    assert "LIMIT 20" in sql
