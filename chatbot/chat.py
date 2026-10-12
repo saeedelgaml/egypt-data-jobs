@@ -7,6 +7,10 @@ Run from the project folder:
 Optional smart mode, which sends only the question text to an AI service and needs a key
 in a file named .env (see .env.example). It may cost money:
     python -m chatbot.chat --ai "what does a data analyst earn in Cairo?"
+
+Local AI fallback (free, needs Ollama running with qwen2.5-coder:3b; skipped when Ollama is down):
+a question that no fixed answer fits may get one checked, read-only SQL query written by the local
+model. Turn it off with --no-local-ai.
 """
 import sys
 
@@ -16,10 +20,11 @@ from chatbot.ai import answer_question
 from db.schema import DEFAULT_DB_PATH
 
 
-def main(argv=None, db_path=DEFAULT_DB_PATH, chooser=None, log_path=None):
+def main(argv=None, db_path=DEFAULT_DB_PATH, chooser=None, log_path=None, fallback="default"):
     args = list(sys.argv[1:] if argv is None else argv)
     use_ai = "--ai" in args
-    args = [a for a in args if a != "--ai"]
+    no_local = "--no-local-ai" in args
+    args = [a for a in args if a not in ("--ai", "--no-local-ai")]
     if not db_path.exists():
         print(f"No database at {db_path}. Run python run_pipeline.py first.")
         return 1
@@ -27,6 +32,11 @@ def main(argv=None, db_path=DEFAULT_DB_PATH, chooser=None, log_path=None):
 
     con = duckdb.connect(str(db_path), read_only=True)
     try:
+        if fallback == "default":
+            fallback = None
+            if not no_local:
+                from chatbot.local_ai import LocalAI
+                fallback = LocalAI(con)
         if chooser is None:
             if use_ai:
                 from dotenv import load_dotenv
@@ -41,7 +51,7 @@ def main(argv=None, db_path=DEFAULT_DB_PATH, chooser=None, log_path=None):
                 from chatbot.router import RuleRouter
                 chooser = RuleRouter(con)
         if args:
-            print(answer_question(con, " ".join(args), chooser, log_path)["text"])
+            print(answer_question(con, " ".join(args), chooser, log_path, fallback)["text"])
         else:
             while True:
                 try:
@@ -50,7 +60,7 @@ def main(argv=None, db_path=DEFAULT_DB_PATH, chooser=None, log_path=None):
                     break
                 if not question:
                     break
-                print(answer_question(con, question, chooser, log_path)["text"] + "\n")
+                print(answer_question(con, question, chooser, log_path, fallback)["text"] + "\n")
     finally:
         con.close()
     return 0

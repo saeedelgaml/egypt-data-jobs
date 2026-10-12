@@ -52,6 +52,25 @@ python -m http.server 8000 --directory site    # preview the site locally
 
 The daily run stays on Windows Task Scheduler (`python run_pipeline.py`, optionally with `--export-site`). Each run adds a line to `data/pipeline.log` and exits 0 or 1; a failed run is also a row in `pipeline_runs`. After a refresh, commit `site/data/jobs.json` and push: the workflow deploys it.
 
+## Local AI mode (optional)
+
+When none of the nine fixed answers fits a question, the Python chatbot can ask a **local** model to write one SQL query. It is free, needs no key, and nothing leaves your computer. The public website never uses it.
+
+1. Install [Ollama](https://ollama.com) and start it (it listens on `http://localhost:11434`).
+2. `ollama pull qwen2.5-coder:3b` (change the model with the `OLLAMA_MODEL` environment variable).
+3. `pip install -r requirements-extras.txt`, then `python -m chatbot.chat "which jobs mention both docker and kubernetes"`. Add `--no-local-ai` to switch it off.
+
+How it stays safe (all checked in code, not only in the prompt):
+- A fixed answer is always tried first; the AI is only a fallback.
+- Off-topic or "ignore your rules" questions are refused by a keyword check, then a yes/no check, with 3 example questions shown.
+- The SQL is parsed with sqlglot: exactly one `SELECT`, no `INSERT/UPDATE/DELETE/DROP/ATTACH/PRAGMA`, only the tables `jobs`, `job_skills`, `skills`, `roles` and their columns, and a short list of allowed functions.
+- `LIMIT 20` is forced, the database is opened read-only, and a query is stopped after 5 seconds.
+- A failing query goes back to the model once; a second failure ends in a polite refusal.
+- Every AI answer shows the SQL under "AI-generated query, check before relying on it".
+- If Ollama is not running, you get the usual "can't answer" message and nothing crashes. Tests use a fake model, so CI needs no Ollama.
+
+Demo video: _(link coming soon)_
+
 ## Keeping Python and the browser identical
 
 `make_router_golden.py` writes `tests/data/router_golden.json`: what the Python chatbot answers for 350+ questions. `node --test` replays every one in JavaScript, and a Python test fails if the file is stale. Change the router, answers or sample data, then run `python make_router_golden.py`.

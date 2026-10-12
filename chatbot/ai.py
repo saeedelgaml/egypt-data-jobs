@@ -118,8 +118,11 @@ def _log(log_path, question, function, params, ok):
         f.write(json.dumps(line, ensure_ascii=False, default=str) + "\n")
 
 
-def answer_question(con, question, chooser, log_path=None):
-    """Answer one typed question. Never raises. Returns text, function, params and ok."""
+def answer_question(con, question, chooser, log_path=None, fallback=None):
+    """Answer one typed question. Never raises. Returns text, function, params and ok.
+
+    fallback (optional) is tried only when no fixed answer fits: chatbot.local_ai.LocalAI. It returns a
+    result dict, or None (for example when Ollama is not running), and then the normal refusal is shown."""
     question = (question or "").strip() if isinstance(question, str) else ""
     if not question:
         return {"text": "Please type a question.", "function": None, "params": {}, "ok": False}
@@ -135,8 +138,13 @@ def answer_question(con, question, chooser, log_path=None):
 
     function, params = choice.get("function"), choice.get("params") or {}
     if function is None:
-        _log(log_path, question, None, {}, False)
         hint = choice.get("hint")
+        if fallback is not None:
+            extra = fallback(question)
+            if extra is not None:
+                _log(log_path, question, "ai_sql" if extra["ok"] else None, {}, extra["ok"])
+                return {**extra, "data": extra.get("data"), "understood": None, "notes": [], "hint": hint}
+        _log(log_path, question, None, {}, False)
         return {"text": (hint + "\n\n" if hint else "") + HELP,
                 "function": None, "params": {}, "ok": False, "data": None, "understood": None,
                 "notes": [], "hint": hint}
