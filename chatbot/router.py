@@ -96,7 +96,7 @@ NEW_RE = _word(r"new|newest|latest|recent|recently|fresh|freshest|just posted|po
 DOMAIN_RE = _word(r"jobs?|postings?|posts?|roles?|positions?|vacanc(?:y|ies)|openings?|hiring|hire|"
                   r"hires|careers?|work|salary|salaries|pay|pays|paid|paying|earn|earns|earning|"
                   r"wage|wages|skills?|compan(?:y|ies)|employers?|market|listings?")
-SENIORITY_RE = _word(r"junior|jr|senior|sr|lead|principal|entry level|entry-level|intern|internship|"
+SENIORITY_RE = _word(r"seniority|experience level|by level|junior|jr|senior|sr|lead|principal|entry level|entry-level|intern|internship|"
                      r"fresh graduate|graduate|fresher|freshers|staff|head of|manager")
 STRICT_NEW_RE = _word(r"new|newest|latest|recent|recently|fresh|freshest|just posted")
 VOLUME_RE = _word(r"jobs?|postings?|openings?|vacanc(?:y|ies)|positions?|hiring|listings?|"
@@ -168,7 +168,7 @@ PLACE_HINT = "I only have postings in Cairo, Giza, Alexandria and Remote."
 
 TITLE_NOTE = ("Titles such as database administrator, data entry specialist and research analyst "
               "are grouped under 'other'.")
-SENIORITY_NOTE = "Seniority is not tracked, so this covers all levels."
+SENIORITY_NOTE = "Seniority is not tracked in this data, so this is the overall figure."
 AMBIGUOUS_HINT = ("Do you mean the most postings or the highest pay? Try: which city has the most "
                   "postings, or which city pays the most.")
 NO_QUESTION_HINT = "I could not tell what you want to know about it."

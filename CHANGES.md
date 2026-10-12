@@ -18,5 +18,6 @@
 | 60-day sample database | Richer Insights | `make_sample_db.py`, `data/sample.duckdb` |
 | README rewritten for a recruiter (badge, live link, synthetic-data statement, architecture) | Understand the project in 2 minutes | `README.md` |
 | Local AI fallback (Ollama, `qwen2.5-coder:3b`): topic check, one SQL query checked with sqlglot, forced LIMIT 20, read-only, 5 s timeout, one retry, SQL shown and labelled; off when Ollama is down or with `--no-local-ai` | Answer questions the nine fixed answers cannot, free and local, without trusting the model | `chatbot/local_ai.py`, `chatbot/ai.py` (`fallback`), `chatbot/chat.py`, `tests/test_local_ai.py`, `tests/conftest.py`, `requirements-extras.txt`, `README.md` |
+| "By seniority" questions still get the overall answer plus the note "Seniority is not tracked in this data, so this is the overall figure." (Python and browser); local AI prompt lists jobs for "which jobs" questions | The seniority word was silently ignored; the model counted instead of listing | `chatbot/router.py`, `chatbot/local_ai.py`, `tests/data/router_golden.json`, `site/data/jobs.json` |
 
 Skipped as requested: re-measuring router accuracy (item 12). Not done on purpose: free-form SQL (none existed), client-side rate limiting, reposts are reported but not deleted (the synthetic data has no real reposts).
