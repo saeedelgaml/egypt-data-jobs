@@ -19,6 +19,7 @@ import sys
 from datetime import datetime, timedelta
 
 from clean.cleaner import clean_raw
+from clean.quality import quality_report
 from collect.collector import _to_date, collect_range
 from db.schema import DEFAULT_DB_PATH, connect, create_tables
 from mock_source.generator import generate_jobs
@@ -31,7 +32,7 @@ def run_pipeline(con, today, source=generate_jobs, since=None):
     that the diary decides where to start.
     """
     today = _to_date(today)
-    last_done = con.execute("SELECT MAX(run_date) FROM pipeline_runs").fetchone()[0]
+    last_done = con.execute("SELECT MAX(run_date) FROM pipeline_runs WHERE status <> 'failed'").fetchone()[0]
     if last_done is not None:
         start = _to_date(last_done) + timedelta(days=1)
     elif since is not None:
@@ -41,11 +42,13 @@ def run_pipeline(con, today, source=generate_jobs, since=None):
 
     days = collect_range(con, start, today, source) if start <= today else []
     cleaned = clean_raw(con)
+    quality = quality_report(con)
     return {
         "days_collected": [d["run_date"] for d in days],
         "rows_collected": sum(d["rows_collected"] for d in days),
         "rows_new": sum(d["rows_new"] for d in days),
         "cleaned": cleaned,
+        "quality": quality,
     }
 
 
@@ -58,7 +61,21 @@ def describe(result):
     else:
         collected = "no new days to collect"
     c = result["cleaned"]
-    return f"{collected}; cleaned: {c['jobs_added']} jobs, {c['job_skills_added']} job_skills, {c['skills_added']} new skills"
+    text = f"{collected}; cleaned: {c['jobs_added']} jobs, {c['job_skills_added']} job_skills, {c['skills_added']} new skills"
+    warnings = result["quality"]["warnings"]
+    return text + ("; WARNING: " + "; ".join(warnings) if warnings else "")
+
+
+def record_failure(con, today):
+    """Put a failed run in pipeline_runs too, so the page and the next reader can see it.
+    A later successful run of the same day replaces this row, and the manager ignores failed rows
+    when it decides which day to collect next."""
+    try:
+        con.execute("DELETE FROM pipeline_runs WHERE run_date = ? AND status = 'failed'", [today])
+        con.execute("INSERT INTO pipeline_runs (run_date, rows_collected, rows_new, rows_duplicate, status) "
+                    "VALUES (?, 0, 0, 0, 'failed')", [today])
+    except Exception:  # the log file below still records the failure
+        pass
 
 
 def main(argv=None, db_path=DEFAULT_DB_PATH, log_path=None):
@@ -79,6 +96,8 @@ def main(argv=None, db_path=DEFAULT_DB_PATH, log_path=None):
     except Exception as exc:  # the log must record every failure
         message = f"FAILED: {type(exc).__name__}: {exc}"
         code = 1
+        if con is not None:
+            record_failure(con, today)
     finally:
         if con is not None:
             con.close()

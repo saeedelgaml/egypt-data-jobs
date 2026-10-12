@@ -12,6 +12,9 @@ MAX_SALARY = 1_000_000
 MIN_GROUP = 3  # a group needs this many listed salaries before it can be ranked
 MAX_QUESTION_CHARS = 300
 
+# A monthly salary outside this range is treated as a typo or a different unit and ignored.
+SALARY_MONTHLY_RANGE = (1_000, 500_000)
+
 # ---- cities -----------------------------------------------------------------------------
 CITIES = ["Cairo", "Giza", "Alexandria", "Remote"]
 

@@ -23,6 +23,11 @@ ORDER BY posted_date, source_job_id
 """
 
 
+def _has_amount(text):
+    """True when the posting shows a salary that the parser had to reject (not just 'Confidential')."""
+    return bool(text) and any(ch.isdigit() for ch in text)
+
+
 def clean_raw(con):
     """Clean every posting in raw_jobs that is not yet in jobs.
 
@@ -36,6 +41,7 @@ def clean_raw(con):
         "job_skills_added": 0,
         "skills_added": 0,
         "missing_salary": 0,
+        "salary_unreadable": 0,
         "missing_city": 0,
         "missing_company": 0,
         "missing_skills": 0,
@@ -63,6 +69,7 @@ def clean_raw(con):
             summary["jobs_added"] += 1
             summary["job_skills_added"] += len(skills)
             summary["missing_salary"] += low is None
+            summary["salary_unreadable"] += low is None and _has_amount(salary_text)
             summary["missing_city"] += city_clean is None
             summary["missing_company"] += company_clean is None
             summary["missing_skills"] += not skills
@@ -81,7 +88,7 @@ def main():
     s = clean_raw(con)
     print(f"jobs added: {s['jobs_added']}, job_skills added: {s['job_skills_added']}, "
           f"new skills: {s['skills_added']}")
-    print(f"missing in the new jobs: salary {s['missing_salary']}, city {s['missing_city']}, "
+    print(f"missing in the new jobs: salary {s['missing_salary']} ({s['salary_unreadable']} unreadable), city {s['missing_city']}, "
           f"company {s['missing_company']}, skills {s['missing_skills']}")
     total = con.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]
     print(f"jobs now holds {total} rows in {DEFAULT_DB_PATH}")

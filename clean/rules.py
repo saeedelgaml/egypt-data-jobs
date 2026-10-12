@@ -5,7 +5,7 @@ to test on its own. The Arabic city names are written as unicode escapes.
 """
 import re
 
-from config import ROLE_PATTERNS, SKILL_VARIANTS
+from config import ROLE_PATTERNS, SALARY_MONTHLY_RANGE, SKILL_VARIANTS
 
 ACRONYMS = {"Ai": "AI", "Bi": "BI", "Ml": "ML", "Ii": "II", "Qa": "QA", "Etl": "ETL", "Nlp": "NLP",
             "Cv": "CV", "Llm": "LLM", "Mlops": "MLOps", "Genai": "GenAI"}
@@ -67,22 +67,36 @@ def clean_company(text):
     return " ".join(ACRONYMS.get(w, w) for w in name.title().split(" "))
 
 
+FOREIGN_CURRENCY = re.compile(r"\$|€|£|\b(?:usd|eur|gbp|sar|aed|dollars?|euros?)\b")
+PER_HOUR = re.compile(r"\bhour(?:ly)?\b|/\s*hr\b|\bper\s+hr\b")
+PER_YEAR = re.compile(r"\b(?:year(?:ly)?|annual(?:ly)?|annum)\b|/\s*(?:yr|year)\b|\bp\.?a\.?\b")
+
+
 def parse_salary(text):
-    """Return (min, max) in EGP per month, or (None, None) if there is no number.
+    """Return (min, max) in EGP per month, or (None, None) if the text cannot be trusted.
 
     Understands "20k-30k", "32,000 - 36,000 EGP", "EGP 9000 - 13000" and
     "14,000 to 19,000 EGP monthly". A single number is used as both ends.
+    Yearly amounts are divided by 12. Another currency, an hourly rate, or a monthly
+    amount outside config.SALARY_MONTHLY_RANGE gives (None, None) instead of a wrong number.
     """
     if not text:
         return None, None
+    lowered = text.lower()
+    if FOREIGN_CURRENCY.search(lowered) or PER_HOUR.search(lowered):
+        return None, None
     numbers = []
-    for value, k in SALARY_NUMBER.findall(text.replace(",", "")):
+    for value, k in SALARY_NUMBER.findall(lowered.replace(",", "")):
         numbers.append(int(round(float(value) * (1000 if k else 1))))
     if not numbers:
         return None, None
-    if len(numbers) == 1:
-        return numbers[0], numbers[0]
-    return min(numbers[:2]), max(numbers[:2])
+    low, high = (numbers[0], numbers[0]) if len(numbers) == 1 else (min(numbers[:2]), max(numbers[:2]))
+    if PER_YEAR.search(lowered):
+        low, high = round(low / 12), round(high / 12)
+    floor, ceiling = SALARY_MONTHLY_RANGE
+    if low < floor or high > ceiling:
+        return None, None
+    return low, high
 
 
 def clean_skills(text):
