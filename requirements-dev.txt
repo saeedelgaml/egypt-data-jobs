@@ -1,0 +1,4 @@
+# Everything needed to run all the tests (what GitHub Actions installs).
+-r requirements.txt
+-r requirements-extras.txt
+pytest>=8

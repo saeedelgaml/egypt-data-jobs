@@ -76,7 +76,7 @@ class RateLimiter:
 
 
 def _a(noun):
-    return ("an " if noun.startswith(("ml", "a", "e", "i", "o", "u")) else "a ") + noun
+    return ("an " if noun.lower().startswith(("ml", "a", "e", "i", "o", "u")) else "a ") + noun
 
 
 def follow_ups(function, params):
@@ -194,7 +194,7 @@ class Service:
         pool += [f"What does {_a(r[:-1])} earn?" for r in PLURAL.values()]
         pool += [f"Who is hiring {r}?" for r in PLURAL.values()]
         pool += [f"What skills do {r} need?" for r in PLURAL.values()]
-        pool += [f"{r.capitalize()} jobs in {c}" for r in PLURAL.values() for c in CITIES]
+        pool += [f"{r[:1].upper() + r[1:]} jobs in {c}" for r in PLURAL.values() for c in CITIES]
         scored = []
         for q in dict.fromkeys(pool):
             low = q.lower()

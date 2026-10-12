@@ -53,7 +53,7 @@ ROLES = {
                    "Tableau": 0.30, "Statistics": 0.30},
     },
     "bi_developer": {
-        "label": "BI developer", "plural": "bi developers",
+        "label": "BI developer", "plural": "BI developers",
         "pattern": r"\b(?:power\s*bi|bi|business\s+intelligence)\s+developer\b",
         "phrases": ["bi developer", "bi developers", "power bi developer", "power bi developers",
                     "bi engineer", "bi engineers", "bi job", "bi jobs", "bi role", "bi roles", "bi position",
@@ -106,7 +106,7 @@ ROLES = {
                    "Statistics": 0.50, "TensorFlow": 0.25, "PyTorch": 0.25},
     },
     "ml_engineer": {
-        "label": "ML engineer", "plural": "ml engineers",
+        "label": "ML engineer", "plural": "ML engineers",
         "pattern": r"\b(?:machine\s+learning|ml)\s+engineer\b",
         "phrases": ["ml engineer", "ml engineers", "ml eng", "ml engs", "machine learning engineer",
                     "machine learning engineers", "machine learning", "ml", "mle"],
@@ -116,7 +116,7 @@ ROLES = {
                    "AWS": 0.40, "Scikit-learn": 0.40, "SQL": 0.30, "Git": 0.30, "MLflow": 0.20},
     },
     "ai_engineer": {
-        "label": "AI engineer", "plural": "ai engineers",
+        "label": "AI engineer", "plural": "AI engineers",
         "pattern": r"\b(?:ai|artificial\s+intelligence)\s+engineer\b",
         "phrases": ["ai engineer", "ai engineers", "ai eng", "ai engs", "ai developer", "ai developers",
                     "ai job", "ai jobs", "ai role", "ai roles", "artificial intelligence engineer",
@@ -128,7 +128,7 @@ ROLES = {
                    "AWS": 0.35, "Git": 0.30, "SQL": 0.25, "LangChain": 0.20},
     },
     "mlops_engineer": {
-        "label": "MLOps engineer", "plural": "mlops engineers",
+        "label": "MLOps engineer", "plural": "MLOps engineers",
         "pattern": r"\bml\s*ops\b",
         "phrases": ["mlops engineer", "mlops engineers", "mlops eng", "mlops engs", "mlops", "ml ops",
                     "ml-ops", "ml ops engineer", "ml ops engineers"],
@@ -138,7 +138,7 @@ ROLES = {
                    "Git": 0.50, "AWS": 0.45, "Terraform": 0.35, "Azure": 0.25, "Airflow": 0.25},
     },
     "nlp_engineer": {
-        "label": "NLP engineer", "plural": "nlp engineers",
+        "label": "NLP engineer", "plural": "NLP engineers",
         "pattern": r"\b(?:nlp|natural\s+language\s+processing)\b",
         "phrases": ["nlp engineer", "nlp engineers", "nlp eng", "nlp engs", "nlp",
                     "natural language processing engineer", "natural language processing engineers",
@@ -179,7 +179,7 @@ ROLES = {
                    "AWS": 0.35, "Java": 0.35, "Airflow": 0.30, "Docker": 0.20},
     },
     "genai_engineer": {
-        "label": "GenAI engineer", "plural": "genai engineers",
+        "label": "GenAI engineer", "plural": "GenAI engineers",
         "pattern": r"\b(?:gen\s*ai|generative\s+ai|llm)\b",
         "phrases": ["genai engineer", "genai engineers", "genai eng", "genai engs", "genai developer",
                     "genai developers", "genai", "gen ai engineer", "gen ai engineers", "gen ai",

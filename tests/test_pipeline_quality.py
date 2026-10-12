@@ -1,4 +1,5 @@
 """Salary parsing limits, the data-quality report and failed runs in pipeline_runs."""
+import json
 from datetime import date
 
 import duckdb
@@ -92,3 +93,13 @@ def test_a_failed_run_is_logged_in_pipeline_runs_and_does_not_skip_the_day(tmp_p
     statuses = con.execute("SELECT DISTINCT status FROM pipeline_runs").fetchall()
     assert ("failed",) not in statuses and con.execute("SELECT COUNT(*) FROM jobs").fetchone()[0] > 0
     con.close()
+
+
+def test_the_manager_can_refresh_the_website_data(tmp_path, monkeypatch):
+    import export_site_data
+    out = tmp_path / "site" / "jobs.json"
+    monkeypatch.setattr(export_site_data, "DEFAULT_OUT", out)
+    code = manager.main(["2026-10-05", "--export-site"], db_path=tmp_path / "jobs.duckdb", log_path=tmp_path / "p.log")
+    assert code == 0 and out.exists()
+    assert "exported" in (tmp_path / "p.log").read_text(encoding="utf-8")
+    assert json.loads(out.read_text(encoding="utf-8"))["meta"]["data_last_updated"] == "2026-10-05"

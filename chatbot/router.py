@@ -497,3 +497,40 @@ class RuleRouter:
         if params.get("limit") is not None:
             bits.append(f"top {params['limit']}")
         return LABELS[function] + (": " + ", ".join(bits) if bits else "")
+
+
+# ---- export for the browser version ---------------------------------------------------------
+
+_EXPORTED_PATTERNS = {
+    "SALARY": SALARY_RE, "MOST": MOST_RE, "LOW": LOW_RE, "COUNT": COUNT_RE, "SKILL_NOUN": SKILL_NOUN_RE,
+    "SKILL_NEED": SKILL_NEED_RE, "OTHERS": OTHERS_RE, "COMPANY": COMPANY_RE, "CITY": CITY_RE, "NEW": NEW_RE,
+    "DOMAIN": DOMAIN_RE, "SENIORITY": SENIORITY_RE, "STRICT_NEW": STRICT_NEW_RE, "VOLUME": VOLUME_RE,
+    "TREND": TREND_RE, "ADVICE": ADVICE_RE, "MUTATE": MUTATE_RE, "CONTACT": CONTACT_RE,
+    "INJECTION": INJECTION_RE, "FILTER_WORD": FILTER_WORD_RE, "STRONG_ROLE": STRONG_ROLE_RE,
+    "ROLE_ASK": ROLE_ASK_RE, "TIME_NOTE": TIME_NOTE_RE, "AMOUNT": AMOUNT_RE, "TIME": TIME_RE,
+    "PERIOD": PERIOD_RE, "DAY_WORD": DAY_WORD_RE, "PLACE": PLACE_RE,
+}
+
+_EXPORTED_TEXT = {
+    "ROLE_HINT": ROLE_HINT, "SKILL_HINT": SKILL_HINT, "TREND_HINT": TREND_HINT, "ADVICE_HINT": ADVICE_HINT,
+    "PLACE_HINT": PLACE_HINT, "TITLE_NOTE": TITLE_NOTE, "SENIORITY_NOTE": SENIORITY_NOTE,
+    "AMBIGUOUS_HINT": AMBIGUOUS_HINT, "NO_QUESTION_HINT": NO_QUESTION_HINT, "AMOUNT_HINT": AMOUNT_HINT,
+    "AMOUNT_NOTE": AMOUNT_NOTE, "MULTI_ROLE_NOTE": MULTI_ROLE_NOTE, "TIME_NOTE": TIME_NOTE,
+    "INJECTION_HINT": INJECTION_HINT, "MUTATE_HINT": MUTATE_HINT, "CONTACT_HINT": CONTACT_HINT,
+}
+
+
+def export_config():
+    """Everything the JavaScript router needs, taken from this file so the two cannot drift apart:
+    the phrase lists, word lists, regular expressions (as source text) and the fixed sentences.
+    Written into site/data/jobs.json by export_site_data.py."""
+    return {
+        "role_phrases": ROLE_PHRASES, "city_phrases": CITY_PHRASES, "skill_aliases": SKILL_ALIASES,
+        "other_titles": sorted(OTHER_TITLES), "intent_words": INTENT_WORDS, "allowed": sorted(ALLOWED),
+        "number_words": NUMBER_WORDS, "labels": LABELS,
+        "patterns": {name: rx.pattern for name, rx in _EXPORTED_PATTERNS.items()},
+        "limit_patterns": [rx.pattern for rx in LIMIT_RES],
+        "subject_patterns": [rx.pattern for rx in SUBJECT_RES],
+        "group_nouns": {name: rx.pattern for name, rx in GROUP_NOUNS.items()},
+        "text": _EXPORTED_TEXT,
+    }

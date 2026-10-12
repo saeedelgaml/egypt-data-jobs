@@ -1,0 +1,9 @@
+{
+  "name": "egypt-data-jobs-site",
+  "private": true,
+  "type": "module",
+  "description": "Tests for the browser version of the chatbot (the site itself needs no build step).",
+  "scripts": {
+    "test": "node --test"
+  }
+}

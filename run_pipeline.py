@@ -4,6 +4,7 @@ Run from the project folder:
     python run_pipeline.py                      (collect up to today, then clean)
     python run_pipeline.py 2026-10-08           (pretend that today is this date)
     python run_pipeline.py --since 2026-10-01   (first run only: start on this day)
+    python run_pipeline.py --export-site        (after a good run, refresh site/data/jobs.json)
 
 The manager reads pipeline_runs to find the last day that was collected, then
 collects every day after it up to today. A PC that was off for three days
@@ -18,6 +19,7 @@ import argparse
 import sys
 from datetime import datetime, timedelta
 
+import export_site_data
 from clean.cleaner import clean_raw
 from clean.quality import quality_report
 from collect.collector import _to_date, collect_range
@@ -82,6 +84,8 @@ def main(argv=None, db_path=DEFAULT_DB_PATH, log_path=None):
     parser = argparse.ArgumentParser(description="Run the whole pipeline once.")
     parser.add_argument("today", nargs="?", help="pretend today is this date (YYYY-MM-DD)")
     parser.add_argument("--since", help="first run only: start collecting on this date")
+    parser.add_argument("--export-site", action="store_true",
+                        help="after a successful run, write the cleaned data to site/data/jobs.json")
     args = parser.parse_args(argv)
 
     today = _to_date(args.today) if args.today else datetime.now().date()
@@ -101,6 +105,13 @@ def main(argv=None, db_path=DEFAULT_DB_PATH, log_path=None):
     finally:
         if con is not None:
             con.close()
+
+    if code == 0 and args.export_site:  # after close: the export opens the file read-only
+        try:
+            meta, size = export_site_data.export(db_path, export_site_data.DEFAULT_OUT)
+            message += f"; exported {meta['postings']} postings to the site ({size // 1024} KB)"
+        except Exception as exc:
+            message, code = f"FAILED: site export: {type(exc).__name__}: {exc}", 1
 
     line = f"{datetime.now():%Y-%m-%d %H:%M:%S} (today={today}) {message}"
     log_path.parent.mkdir(parents=True, exist_ok=True)

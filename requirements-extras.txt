@@ -1,0 +1,6 @@
+# Optional: the local Streamlit page (app.py), the paid AI router (chatbot.chat --ai) and .env loading.
+# The pipeline, the chatbot and the website export need only requirements.txt.
+pandas>=2.2
+streamlit>=1.40
+python-dotenv>=1.0
+anthropic>=0.40

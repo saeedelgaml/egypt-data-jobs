@@ -1,6 +1,1 @@
-pandas
-duckdb
-pytest
-python-dotenv
-anthropic
-streamlit
+duckdb>=1.5
