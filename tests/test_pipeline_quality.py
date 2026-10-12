@@ -103,3 +103,16 @@ def test_the_manager_can_refresh_the_website_data(tmp_path, monkeypatch):
     assert code == 0 and out.exists()
     assert "exported" in (tmp_path / "p.log").read_text(encoding="utf-8")
     assert json.loads(out.read_text(encoding="utf-8"))["meta"]["data_last_updated"] == "2026-10-05"
+
+
+def test_a_hidden_company_is_labelled_and_never_ranked_as_a_company():
+    from chatbot.queries import run
+    con = _con_with([_raw(1, company="Confidential"), _raw(2, company="Confidential", skills="SQL"),
+                     _raw(3, company="Sphinx Data Labs")])
+    assert con.execute("SELECT COUNT(*) FROM jobs WHERE company IS NULL OR company = ''").fetchone()[0] == 0
+    assert con.execute("SELECT COUNT(*) FROM jobs WHERE company = 'Company not disclosed'").fetchone()[0] == 2
+    companies = run(con, "top_companies")["result"]["companies"]
+    assert [c["company"] for c in companies] == ["Sphinx Data Labs"]
+    con.execute("UPDATE jobs SET company = NULL WHERE job_id = 'id-3'")
+    create_tables(con)  # older databases are repaired the next time the pipeline starts
+    assert con.execute("SELECT company FROM jobs WHERE job_id = 'id-3'").fetchone()[0] == "Company not disclosed"

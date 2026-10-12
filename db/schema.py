@@ -3,7 +3,7 @@ from pathlib import Path
 
 import duckdb
 
-from config import SEED_ROLES
+from config import COMPANY_NOT_DISCLOSED, SEED_ROLES
 
 DEFAULT_DB_PATH = Path("data") / "jobs.duckdb"
 
@@ -95,6 +95,8 @@ def create_tables(con):
         con.execute(sql)
     for role in SEED_ROLES:
         con.execute("INSERT OR IGNORE INTO roles VALUES (?)", [role])
+    # Older databases stored a hidden company as an empty (NULL) name.
+    con.execute("UPDATE jobs SET company = ? WHERE company IS NULL", [COMPANY_NOT_DISCLOSED])
 
 
 def add_skill(con, skill):

@@ -14,7 +14,7 @@ SELECT COUNT(*) FROM (
     SELECT job_id, ROW_NUMBER() OVER (
         PARTITION BY lower(title), company, city, salary_min, salary_max
         ORDER BY posted_date, job_id) AS n
-    FROM jobs WHERE company IS NOT NULL AND salary_min IS NOT NULL
+    FROM jobs WHERE company IS NOT NULL AND company <> 'Company not disclosed' AND salary_min IS NOT NULL
 ) WHERE n > 1
 """
 
@@ -29,7 +29,7 @@ def quality_report(con):
     counts = {
         "no_salary": "SELECT COUNT(*) FROM jobs WHERE salary_min IS NULL",
         "no_city": "SELECT COUNT(*) FROM jobs WHERE city IS NULL",
-        "no_company": "SELECT COUNT(*) FROM jobs WHERE company IS NULL",
+        "no_company": "SELECT COUNT(*) FROM jobs WHERE company IS NULL OR company = 'Company not disclosed'",
         "no_skills": "SELECT COUNT(*) FROM jobs WHERE job_id NOT IN (SELECT job_id FROM job_skills)",
         "other_role": "SELECT COUNT(*) FROM jobs WHERE role = 'other'",
     }

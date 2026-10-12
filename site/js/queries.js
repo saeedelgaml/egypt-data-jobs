@@ -44,6 +44,7 @@ export function createDatabase(payload) {
   const skills = [...payload.skills];
   const roleKeys = cfg.roles.map((r) => r.key);
   const cities = [...new Set(jobs.map((j) => j.city).filter((c) => c !== null))].sort(byText);
+  const HIDDEN = cfg.company_not_disclosed;
   const { max_limit: MAX_LIMIT, max_days: MAX_DAYS, max_salary: MAX_SALARY, min_group: MIN_GROUP } = cfg;
 
   // ---- checks on values that come from a visitor --------------------------------------
@@ -169,7 +170,7 @@ export function createDatabase(payload) {
       const role = checkRole(p.role), city = checkCity(p.city), skill = checkSkill(p.skill);
       const limit = checkInt("limit" in p ? p.limit : 5, "limit", 1, MAX_LIMIT);
       const counts = new Map();
-      scope({ role, city, skill }).forEach((j) => { if (j.company !== null) count(counts, j.company); });
+      scope({ role, city, skill }).forEach((j) => { if (j.company !== null && j.company !== HIDDEN) count(counts, j.company); });
       return { role, city, skill, companies: ranked(counts, limit).map(([company, n]) => ({ company, postings: n })) };
     },
 
@@ -211,7 +212,7 @@ export function createDatabase(payload) {
         if (j.salary_min === null) continue;
         const keys = groupBy === "skill" ? j.skills : [j[groupBy]];
         for (const key of keys) {
-          if (key === null || key === undefined) continue;
+          if (key === null || key === undefined || (groupBy === "company" && key === HIDDEN)) continue;
           if (!groups.has(key)) groups.set(key, []);
           groups.get(key).push(mid(j));
         }

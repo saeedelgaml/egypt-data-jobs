@@ -3,6 +3,7 @@
 Run from the project folder:  python -m clean.cleaner
 Running it again is safe: postings that are already in jobs are skipped.
 """
+from config import COMPANY_NOT_DISCLOSED
 from clean.rules import (
     clean_city,
     clean_company,
@@ -53,13 +54,13 @@ def clean_raw(con):
              posted_date, collected_on) in rows:
             low, high = parse_salary(salary_text)
             city_clean = clean_city(city)
-            company_clean = clean_company(company)
+            company_clean = clean_company(company)  # None when hidden
             skills = clean_skills(skills_text)
 
             con.execute(
                 "INSERT INTO jobs (job_id, title, role, company, city, salary_min, "
                 "salary_max, posted_date, first_seen_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                [job_id, clean_title(title), clean_role(title), company_clean, city_clean,
+                [job_id, clean_title(title), clean_role(title), company_clean or COMPANY_NOT_DISCLOSED, city_clean,
                  low, high, posted_date, collected_on],
             )
             for skill in skills:

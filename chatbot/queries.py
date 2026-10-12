@@ -11,7 +11,7 @@ value comes back as {"ok": False, "message": ...}.
 """
 import inspect
 
-from config import MAX_DAYS, MAX_LIMIT, MAX_SALARY, MIN_GROUP, SEED_ROLES
+from config import COMPANY_NOT_DISCLOSED, MAX_DAYS, MAX_LIMIT, MAX_SALARY, MIN_GROUP, SEED_ROLES
 
 
 
@@ -188,8 +188,8 @@ def top_companies(con, role=None, city=None, skill=None, limit=5):
     limit = _check_int(limit, "limit", 1, MAX_LIMIT)
     parts, params = _scope(role, city, skill)
     rows = con.execute(
-        "SELECT j.company, COUNT(*) AS n FROM jobs j" + _where(parts + ["j.company IS NOT NULL"]) +
-        " GROUP BY j.company ORDER BY n DESC, j.company LIMIT ?", params + [limit]).fetchall()
+        "SELECT j.company, COUNT(*) AS n FROM jobs j" + _where(parts + ["j.company IS NOT NULL", "j.company <> ?"]) +
+        " GROUP BY j.company ORDER BY n DESC, j.company LIMIT ?", params + [COMPANY_NOT_DISCLOSED, limit]).fetchall()
     return {"role": role, "city": city, "skill": skill,
             "companies": [{"company": c, "postings": n} for c, n in rows]}
 
@@ -235,7 +235,7 @@ def count_postings(con, role=None, city=None, skill=None, min_salary=None):
 _GROUPS = {
     "role": ("j.role", "", "j.role IS NOT NULL"),
     "city": ("j.city", "", "j.city IS NOT NULL"),
-    "company": ("j.company", "", "j.company IS NOT NULL"),
+    "company": ("j.company", "", f"j.company IS NOT NULL AND j.company <> '{COMPANY_NOT_DISCLOSED}'"),
     "skill": ("js.skill", " JOIN job_skills js ON js.job_id = j.job_id", "js.skill IS NOT NULL"),
 }
 

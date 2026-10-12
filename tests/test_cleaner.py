@@ -59,7 +59,7 @@ def test_companies_match_the_answer_key(cleaned):
     con, _ = cleaned
     truth = truth_by_id()
     for job_id, company in con.execute("SELECT job_id, company FROM jobs").fetchall():
-        assert company == truth[job_id]["company"], job_id
+        assert company == (truth[job_id]["company"] or "Company not disclosed"), job_id
 
 
 def test_salaries_match_the_answer_key(cleaned):
