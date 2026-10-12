@@ -3,18 +3,12 @@ from pathlib import Path
 
 import duckdb
 
+from config import SEED_ROLES
+
 DEFAULT_DB_PATH = Path("data") / "jobs.duckdb"
 
-# The fixed list of roles. Each role is stored once. Cleaning maps messy
+# The fixed list of roles lives in config.py. Each role is stored once. Cleaning maps messy
 # titles such as "sr data engineer" onto one of these names.
-SEED_ROLES = [
-    "data_engineer",
-    "data_analyst",
-    "data_scientist",
-    "ml_engineer",
-    "bi_developer",
-    "other",
-]
 
 # raw_jobs keeps postings exactly as collected: messy text, duplicates allowed.
 RAW_JOBS = """

@@ -5,18 +5,11 @@ to test on its own. The Arabic city names are written as unicode escapes.
 """
 import re
 
+from config import ROLE_PATTERNS, SKILL_VARIANTS
+
 ACRONYMS = {"Ai": "AI", "Bi": "BI", "Ml": "ML", "Ii": "II", "Qa": "QA", "Etl": "ETL"}
 
-# Role rules, checked in order. A title that matches none of them is "other".
-# "Data Entry Specialist" and "Business Analyst" match nothing on purpose.
-ROLE_PATTERNS = [
-    ("ml_engineer", r"\b(?:machine\s+learning|ml)\s+engineer\b"),
-    ("data_engineer", r"\bdata\s+engineer\b"),
-    ("data_scientist", r"\bdata\s+scientist\b"),
-    ("data_analyst", r"\bdata\s+analyst\b"),
-    ("bi_developer", r"\b(?:power\s*bi|bi|business\s+intelligence)\s+developer\b"),
-]
-
+# Role rules (config.ROLE_PATTERNS) are checked in order. A title that matches none of them is "other".
 # City rules, checked in order. The first pattern that matches decides.
 CITY_PATTERNS = [
     ("Remote", [r"\bremote\b", r"work from home"]),
@@ -27,19 +20,8 @@ CITY_PATTERNS = [
 
 COMPANY_SUFFIX = re.compile(r"\s*(?:\(egypt\)|llc|ltd\.?|inc\.?)\s*$", re.IGNORECASE)
 
-SKILL_ALIASES = {
-    "python": "Python", "python3": "Python",
-    "sql": "SQL",
-    "spark": "Spark", "apache spark": "Spark", "pyspark": "Spark",
-    "airflow": "Airflow", "apache airflow": "Airflow",
-    "aws": "AWS", "amazon web services": "AWS",
-    "azure": "Azure", "docker": "Docker", "kafka": "Kafka", "dbt": "dbt", "git": "Git",
-    "java": "Java", "excel": "Excel", "ms excel": "Excel",
-    "power bi": "Power BI", "powerbi": "Power BI", "tableau": "Tableau",
-    "pandas": "Pandas", "statistics": "Statistics",
-    "scikit-learn": "Scikit-learn", "sklearn": "Scikit-learn",
-    "tensorflow": "TensorFlow", "pytorch": "PyTorch",
-}
+SKILL_ALIASES = {name.lower(): canonical for canonical, variants in SKILL_VARIANTS.items()
+                 for name in [canonical, *variants]}
 
 SKILL_SPLIT = re.compile(r"\s*[,;|/]\s*")
 SALARY_NUMBER = re.compile(r"(\d+(?:\.\d+)?)\s*([kK])?")

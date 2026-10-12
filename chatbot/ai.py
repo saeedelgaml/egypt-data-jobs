@@ -14,14 +14,12 @@ import json
 import os
 from datetime import datetime
 
+from config import CITIES, MAX_QUESTION_CHARS, SEED_ROLES
 from chatbot.queries import DESCRIPTIONS, FUNCTIONS, MAX_DAYS, MAX_LIMIT, run
 from chatbot.text import to_text
-from db.schema import SEED_ROLES
 
 DEFAULT_MODEL = "claude-haiku-5-5"
-MAX_QUESTION_CHARS = 300
 MAX_OUTPUT_TOKENS = 300
-CITIES = ["Cairo", "Giza", "Alexandria", "Remote"]
 
 HELP = ("I can answer questions about new postings, salaries, top skills, skills that go with "
         "another skill, top companies, postings per city or role, posting counts and which role, city, "

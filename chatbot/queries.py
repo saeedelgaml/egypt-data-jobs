@@ -11,12 +11,8 @@ value comes back as {"ok": False, "message": ...}.
 """
 import inspect
 
-from db.schema import SEED_ROLES
+from config import MAX_DAYS, MAX_LIMIT, MAX_SALARY, MIN_GROUP, SEED_ROLES
 
-MAX_LIMIT = 20
-MAX_DAYS = 90
-MAX_SALARY = 1_000_000
-MIN_GROUP = 3  # a group needs this many listed salaries before it can be ranked
 
 
 class BadQuestion(ValueError):

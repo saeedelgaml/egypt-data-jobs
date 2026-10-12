@@ -9,44 +9,15 @@ import random
 import sys
 from datetime import date, datetime, timedelta
 
-# Share of postings per role.
-ROLE_WEIGHTS = {
-    "data_engineer": 0.30,
-    "data_analyst": 0.30,
-    "data_scientist": 0.15,
-    "ml_engineer": 0.10,
-    "bi_developer": 0.10,
-    "other": 0.05,
-}
+from config import (ROLE_SKILL_PROBS, ROLE_TITLES, ROLE_WEIGHTS, SALARY_BANDS, SENIORITY_BY_ROLE,
+                    SKILL_VARIANTS)
 
-# Ways a board might write each role.
-ROLE_TITLES = {
-    "data_engineer": ["Data Engineer"],
-    "data_analyst": ["Data Analyst"],
-    "data_scientist": ["Data Scientist"],
-    "ml_engineer": ["Machine Learning Engineer", "ML Engineer"],
-    "bi_developer": ["BI Developer", "Power BI Developer", "Business Intelligence Developer"],
-    "other": ["Business Analyst", "Database Administrator", "Data Entry Specialist",
-              "Analytics Manager", "Research Analyst", "Reporting Specialist"],
-}
-
-SENIORITY_WEIGHTS = {"junior": 0.30, "mid": 0.45, "senior": 0.25}
-
+# How a title is dressed up at each level. The role lists, weights, salary bands and skill
+# shares all live in config.py.
 SENIORITY_FORMATS = {
     "junior": ["Junior {r}", "Jr. {r}", "{r} (Junior)"],
     "mid": ["{r}", "{r}", "{r} II", "{r} (Hybrid)"],
     "senior": ["Senior {r}", "Sr. {r}", "Sr {r}", "{r} (Senior)", "Lead {r}"],
-}
-
-# Invented monthly salary bands in EGP: (low, high) per role and seniority.
-# These are made-up numbers, not market facts.
-SALARY_BANDS = {
-    "data_engineer": {"junior": (12000, 20000), "mid": (20000, 35000), "senior": (35000, 60000)},
-    "data_analyst": {"junior": (8000, 15000), "mid": (15000, 25000), "senior": (25000, 40000)},
-    "data_scientist": {"junior": (12000, 20000), "mid": (20000, 35000), "senior": (35000, 55000)},
-    "ml_engineer": {"junior": (15000, 25000), "mid": (25000, 40000), "senior": (40000, 65000)},
-    "bi_developer": {"junior": (9000, 16000), "mid": (16000, 28000), "senior": (28000, 45000)},
-    "other": {"junior": (8000, 15000), "mid": (15000, 25000), "senior": (25000, 40000)},
 }
 
 CITY_WEIGHTS = {"Cairo": 0.55, "Giza": 0.20, "Alexandria": 0.12, "Remote": 0.13}
@@ -73,32 +44,8 @@ COMPANIES = [
 ]
 COMPANY_SUFFIXES = ["", "", "", " LLC", " Ltd.", " (Egypt)"]
 
-# Chance that each skill appears in a posting for the role. These are the
-# known answers the chatbot will be tested against.
-ROLE_SKILL_PROBS = {
-    "data_engineer": {"Python": 0.90, "SQL": 0.90, "Airflow": 0.50, "Spark": 0.50, "AWS": 0.40,
-                      "Git": 0.30, "Docker": 0.30, "Kafka": 0.20, "Azure": 0.20, "dbt": 0.15},
-    "data_analyst": {"SQL": 0.85, "Excel": 0.80, "Power BI": 0.55, "Python": 0.40,
-                     "Tableau": 0.30, "Statistics": 0.30},
-    "data_scientist": {"Python": 0.95, "SQL": 0.60, "Pandas": 0.60, "Scikit-learn": 0.60,
-                       "Statistics": 0.50, "TensorFlow": 0.25, "PyTorch": 0.25},
-    "ml_engineer": {"Python": 0.95, "PyTorch": 0.50, "Docker": 0.50, "TensorFlow": 0.40,
-                    "AWS": 0.40, "Scikit-learn": 0.40, "SQL": 0.30, "Git": 0.30},
-    "bi_developer": {"Power BI": 0.85, "SQL": 0.80, "Excel": 0.50, "Tableau": 0.30, "Azure": 0.20},
-    "other": {"Excel": 0.70, "SQL": 0.60, "Power BI": 0.30, "Python": 0.20, "Tableau": 0.15},
-}
-
 # Other ways a board might write a skill.
-SKILL_ALIASES = {
-    "Python": ["Python", "python", "Python3"],
-    "SQL": ["SQL", "Sql"],
-    "Spark": ["Spark", "Apache Spark", "PySpark"],
-    "Airflow": ["Airflow", "Apache Airflow"],
-    "AWS": ["AWS", "Amazon Web Services"],
-    "Power BI": ["Power BI", "PowerBI", "power bi"],
-    "Scikit-learn": ["Scikit-learn", "sklearn"],
-    "Excel": ["Excel", "MS Excel"],
-}
+SKILL_ALIASES = {canonical: [canonical, *variants] for canonical, variants in SKILL_VARIANTS.items() if variants}
 SKILL_SEPARATORS = [", ", "; ", " | ", " / ", ","]
 
 SALARY_CONFIDENTIAL = 0.15
@@ -127,7 +74,7 @@ def _format_salary(rng, low, high):
 
 def _build_posting(day, index, rng):
     role = _pick(rng, ROLE_WEIGHTS)
-    seniority = _pick(rng, SENIORITY_WEIGHTS)
+    seniority = _pick(rng, SENIORITY_BY_ROLE[role])
 
     title = rng.choice(SENIORITY_FORMATS[seniority]).format(r=rng.choice(ROLE_TITLES[role]))
     title = rng.choices([title, title.lower(), title.upper()], weights=[0.7, 0.2, 0.1])[0]

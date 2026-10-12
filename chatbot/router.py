@@ -14,51 +14,14 @@ notes (honest limits that apply to this answer) and hint (shown with a refusal).
 import re
 from difflib import get_close_matches
 
-from chatbot.queries import MAX_LIMIT, MAX_DAYS
+from config import (CITY_PHRASES, MAX_DAYS, MAX_LIMIT, ROLE_LABEL, ROLE_PHRASES, SEED_ROLES,
+                    SKILL_QUERY_ALIASES as SKILL_ALIASES)
 
 # ---- what the router knows ----------------------------------------------------
 
-ROLE_PHRASES = {
-    "data_engineer": ["data engineer", "data engineers", "data engineering", "data eng", "data engs", "de", "etl developer",
-                      "etl engineer", "pipeline engineer", "analytics engineer"],
-    "data_analyst": ["data analyst", "data analysts", "data analytics", "analyst", "analysts",
-                     "analytics", "reporting analyst"],
-    "data_scientist": ["data scientist", "data scientists", "data science", "ds", "scientist", "scientists"],
-    "ml_engineer": ["ml engineer", "ml engineers", "ml eng", "ml engs", "machine learning engineer",
-                    "machine learning engineers", "machine learning", "ml", "mle"],
-    "bi_developer": ["bi developer", "bi developers", "power bi developer", "power bi developers",
-                     "bi engineer", "bi engineers", "bi job", "bi jobs", "bi role", "bi roles", "bi position", "bi positions", "bi postings", "bi dev", "bi devs", "power bi dev", "business intelligence developer",
-                     "business intelligence developers"],
-    "other": ["other roles", "other jobs", "other role", "business analyst", "business analysts",
-              "database administrator", "database administrators", "dba", "data entry",
-              "data entry specialist", "analytics manager", "research analyst",
-              "research analysts", "reporting specialist"],
-}
+# Phrases for roles, cities and skills live in config.py.
 # Phrases inside "other" that are titles, not the word "other"
 OTHER_TITLES = {p for p in ROLE_PHRASES["other"] if not p.startswith("other ")}
-
-CITY_PHRASES = {
-    "Cairo": ["cairo", "القاهرة", "القاهره", "kahera"],
-    "Giza": ["giza", "gizeh", "الجيزة", "الجيزه"],
-    "Alexandria": ["alexandria", "alex", "alexandra", "الإسكندرية",
-                   "الاسكندرية", "\u0625\u0633\u0643\u0646\u062f\u0631\u064a\u0629", "\u0627\u0633\u0643\u0646\u062f\u0631\u064a\u0629", "\u0627\u0644\u0623\u0633\u0643\u0646\u062f\u0631\u064a\u0629", "\u0627\u0633\u0643\u0646\u062f\u0631\u064a\u0647"],
-    "Remote": ["remote", "remotely", "work from home", "wfh", "work-from-home", "home based"],
-}
-
-SKILL_ALIASES = {
-    "Power BI": ["powerbi", "power-bi", "pbi"],
-    "Scikit-learn": ["scikit learn", "scikitlearn", "sklearn"],
-    "Spark": ["apache spark", "pyspark"],
-    "Airflow": ["apache airflow"],
-    "Kafka": ["apache kafka"],
-    "AWS": ["amazon web services"],
-    "Azure": ["microsoft azure"],
-    "TensorFlow": ["tensor flow", "tf"],
-    "PyTorch": ["py torch", "torch"],
-    "dbt": ["data build tool"],
-    "Statistics": ["statistical", "stats"],
-    "Excel": ["ms excel", "microsoft excel"],
-}
 
 INTENT_WORDS = """salary salaries earn earns earning earnings wages compensation income companies
 company employers employer skills technologies technology requirements required requires requiring
@@ -196,8 +159,8 @@ PLACE_RE = re.compile(
     r"scientists?|wazayef|wazifa|zzrole)(?:\s+(?:is|are|was|were|there|located|based|available|open|posted|exist|exists|do|does|have|has)){0,3}\s+(?:in|at|near|around|fi|\u0641\u064a)\s+"
     r"([a-z]+(?:\s+[a-z]+)?)(?![a-z])")
 
-ROLE_HINT = ("I only have data roles: data engineer, data analyst, data scientist, ML engineer, "
-             "BI developer and other.")
+ROLE_HINT = ("I only have data roles: "
+             + ", ".join(ROLE_LABEL[r] for r in SEED_ROLES[:-1]) + " and other.")
 SKILL_HINT = "I only know these skills: {}."
 TREND_HINT = "I only have a snapshot of the current postings, so I cannot show trends or changes over time."
 ADVICE_HINT = "I can show the data, but I cannot give advice about what to choose."

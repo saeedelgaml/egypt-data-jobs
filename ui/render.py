@@ -6,9 +6,7 @@ The only unescaped text here is markup written in this file.
 """
 from html import escape
 
-ROLE_LABEL = {"data_engineer": "data engineer", "data_analyst": "data analyst",
-              "data_scientist": "data scientist", "ml_engineer": "ML engineer",
-              "bi_developer": "BI developer", "other": "other roles"}
+from config import ROLE_LABEL
 
 TITLES = {
     "salary_for_role": "Typical monthly pay",

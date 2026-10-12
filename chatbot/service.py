@@ -17,6 +17,7 @@ import duckdb
 
 from chatbot.ai import MAX_QUESTION_CHARS, answer_question
 from chatbot.router import RuleRouter
+from config import CITIES, EXAMPLES, HOW_TO_ASK, PLURAL
 from db.schema import DEFAULT_DB_PATH
 
 SAMPLE_DB_PATH = DEFAULT_DB_PATH.parent / "sample.duckdb"
@@ -33,51 +34,6 @@ def default_db_path():
 
 SYNTHETIC_NOTE = ("All postings are synthetic: a program generated them for this portfolio project. "
                   "They do not describe the real Egyptian job market.")
-
-PLURAL = {"data_engineer": "data engineers", "data_analyst": "data analysts",
-          "data_scientist": "data scientists", "ml_engineer": "ml engineers",
-          "bi_developer": "bi developers"}
-
-# Click-to-ask questions, grouped for the page. Tests check that every one is answered.
-EXAMPLES = {
-    "Pay": [
-        "What does a data analyst earn in Cairo?",
-        "Which city pays data engineers the most?",
-        "Lowest paying role",
-        "How many jobs pay over 30k?",
-    ],
-    "Skills": [
-        "What skills do ml engineers need?",
-        "What skills go with Airflow?",
-        "Top 5 skills in Giza",
-    ],
-    "Hiring": [
-        "Who is hiring data scientists?",
-        "Top 5 companies hiring data engineers",
-        "Which city has the most postings?",
-    ],
-    "New": [
-        "New data engineer jobs in the last 7 days",
-        "Remote data analyst jobs",
-        "Which role has the most openings?",
-    ],
-}
-
-# Advice on how to ask. Each tip has an example that a test checks.
-HOW_TO_ASK = [
-    {"title": "Name a role", "tip": "Say data engineer, data analyst, data scientist, ML engineer or BI developer.",
-     "example": "What does a data engineer earn?"},
-    {"title": "Add a city", "tip": "Cairo, Giza, Alexandria or Remote.",
-     "example": "Data scientist jobs in Alexandria"},
-    {"title": "Add a skill", "tip": "Python, SQL, Airflow, Power BI, Spark, Docker and more.",
-     "example": "How many postings list Spark?"},
-    {"title": "Use numbers", "tip": "Try top 5, over 30k, or the last 7 days.",
-     "example": "Top 3 skills for data analysts"},
-    {"title": "Ask for a ranking", "tip": "Start with which and end with the most or the lowest.",
-     "example": "Which skill pays the most?"},
-    {"title": "One thing at a time", "tip": "One city and one skill per question works best.",
-     "example": "Companies hiring in Giza"},
-]
 
 LIMITS_NOTE = ("Not available: trends over time, seniority, other countries or cities, advice about "
                "what to choose, and any change to the data.")
@@ -222,7 +178,7 @@ class Service:
         skills = [r[0] for r in self.con.cursor().execute("SELECT skill FROM skills ORDER BY skill").fetchall()]
         return {"postings": total, "with_salary": with_salary, "first_posted": first, "last_posted": last,
                 "last_run": run[0] if run else None, "last_run_status": run[1] if run else None,
-                "roles": list(PLURAL.values()) + ["other"], "cities": ["Cairo", "Giza", "Alexandria", "Remote"],
+                "roles": list(PLURAL.values()) + ["other"], "cities": list(CITIES),
                 "skills": skills, "synthetic_note": SYNTHETIC_NOTE, "limits_note": LIMITS_NOTE,
                 "as_of": date.today().isoformat()}
 
@@ -238,7 +194,7 @@ class Service:
         pool += [f"What does {_a(r[:-1])} earn?" for r in PLURAL.values()]
         pool += [f"Who is hiring {r}?" for r in PLURAL.values()]
         pool += [f"What skills do {r} need?" for r in PLURAL.values()]
-        pool += [f"{r.capitalize()} jobs in {c}" for r in PLURAL.values() for c in ("Cairo", "Giza", "Alexandria", "Remote")]
+        pool += [f"{r.capitalize()} jobs in {c}" for r in PLURAL.values() for c in CITIES]
         scored = []
         for q in dict.fromkeys(pool):
             low = q.lower()
