@@ -1,80 +1,63 @@
-# Egypt data jobs
+# Egypt Data Jobs
 
-A pipeline that collects data-job postings, cleans them, stores them in DuckDB, and answers questions about them through a chatbot. The chatbot answers questions typed in plain English about salaries, skills, companies, cities and new postings. It is free to run and needs no account or key.
+[![Tests and deploy site](https://github.com/saeedelgaml/egypt-data-jobs/actions/workflows/pages.yml/badge.svg)](https://github.com/saeedelgaml/egypt-data-jobs/actions/workflows/pages.yml)
 
-All data in this repository is synthetic. A small program generates fake job postings with messy city names, salary formats and duplicates, so the cleaning steps have real work to do. No real job board text is stored here, and none of the numbers describe the real Egyptian job market. Company names are invented, and any match with a real company is a coincidence.
+**Live site: https://saeedelgaml.github.io/egypt-data-jobs/** (ask questions like "What does an AI engineer earn in Cairo?")
 
-## Status
+> **The data is synthetic.** Every posting comes from `mock_source/generator.py`, a program that invents messy job ads. Company names are made up and nothing here describes the real Egyptian job market. The pipeline is built to accept a real source later: only the `source` function passed to the collector has to change.
 
-Phases 1 to 10 are done: the repository layout, the DuckDB tables, the generator for fake job postings, the collector that stores each day's postings, the cleaner that turns them into tidy tables, the manager script that runs both once a day, the nine fixed answers the chatbot can give, and a free rule-based router that reads a typed question and picks one of them. An optional AI router is also included. A Streamlit web page sits on top of them.
+## What it is, in 30 seconds
 
-## Setup
+A small data-engineering project, end to end:
+
+```
+mock_source/generator.py ─▶ collect (raw_jobs) ─▶ clean (jobs, job_skills) ─▶ DuckDB ─▶ export_site_data.py ─▶ site/data/jobs.json
+        daily on Windows Task Scheduler (run_pipeline.py)                                        │
+                                                             GitHub Pages page: rule-based chatbot + Insights charts, in the browser
+```
+
+- **Pipeline** (`run_pipeline.py`): collects every missed day, cleans messy cities, salaries (EGP, yearly or foreign amounts handled), titles and skills into 14 data roles, skips duplicates, writes a data-quality report and logs failures.
+- **Chatbot**: a free rule-based router reads a question and picks one of nine fixed, parameter-checked answers. It never writes free-form SQL, is read-only, caps results at 20 rows and 90 days, and says how it understood you ("Read as ..."). About 80% right on questions it was not built around (`docs/accuracy.md`).
+- **Website** (`site/`): static, no server. The same router and answers run in your browser on one JSON file, so nothing you type leaves the page. It has an Insights section (Chart.js) and shows "Data last updated".
+- **Optional paid AI router**: `python -m chatbot.chat --ai ...` runs locally only. No key is ever in the site or the repository.
+
+## What it demonstrates
+
+Scheduled catch-up ETL with idempotent runs, rule-based cleaning with tests, a guarded query layer, one shared config (`config.py`), a Python and JavaScript implementation kept identical by a golden-file test, accessible static front end, and CI that tests then deploys.
+
+## Roles covered
+
+Data analyst, BI developer, business analyst, data engineer, analytics engineer, data scientist, ML engineer, AI engineer, MLOps engineer, NLP engineer, computer vision engineer, data architect, big data engineer and GenAI/LLM engineer, plus "other". Each has its own skills, seniority levels and (invented) salary bands in `config.py`, and aliases such as "AI eng", "ML eng" and "LLM".
+
+## Run it
 
 ```
 python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-pytest
+.venv\Scripts\activate            # macOS/Linux: source .venv/bin/activate
+pip install -r requirements-dev.txt
+pytest                            # Python tests
+node --test                       # browser chatbot tests (Node 20+)
 ```
 
-On Windows, activate the environment with `.venv\Scripts\activate`.
-
-## Running the pipeline
+`requirements.txt` is enough for the pipeline, the chatbot and the export; `requirements-extras.txt` adds the local Streamlit page (`streamlit run app.py`) and the AI router.
 
 ```
-python run_pipeline.py
-```
-
-This collects every day since the last run, up to today, and then cleans the new postings. If the computer was off for a few days, the next run collects the missed days. Running it twice on the same day changes nothing. The first run on an empty database collects only today, unless you pass a start date with `--since 2026-10-01`.
-
-Each run adds one line to `data/pipeline.log` and exits with 0 when it worked and 1 when it failed. On Windows, Task Scheduler can run the command once a day and show that exit code.
-
-## Asking questions
-
-The chatbot has nine answers. Each one is a function in `chatbot/queries.py` that runs one fixed SQL query, so the numbers always come from the database. Salaries are monthly amounts in EGP. Most answers accept filters for role, city and skill, and `count_postings` also takes a minimum salary.
-
-```
-python -m chatbot.ask
-python -m chatbot.ask new_postings role=data_engineer days=7
-python -m chatbot.ask salary_for_role role=data_analyst city=Cairo
-python -m chatbot.ask top_paying group_by=city role=data_engineer
-```
-
-The other answers are `top_skills`, `skills_with` (skills that appear together with another skill), `top_companies`, `jobs_by_city`, `jobs_by_role` and `count_postings`. A role, city or skill that does not exist is refused with a message that lists the valid ones. Values are passed to SQL as parameters and never pasted into the query text. A ranking in `top_paying` only counts a group that has at least 3 postings with a listed salary.
-
-## Asking in plain English
-
-```
+python run_pipeline.py                  # collect missed days, clean, quality report
+python run_pipeline.py --export-site    # same, then refresh site/data/jobs.json
+python make_sample_db.py                # rebuild data/sample.duckdb (60 synthetic days)
+python export_site_data.py --db data/sample.duckdb
 python -m chatbot.chat "what does a data analyst earn in Cairo?"
-python -m chatbot.chat
+python -m http.server 8000 --directory site    # preview the site locally
 ```
 
-A rule-based router reads the question, fixes small typos, finds the role, city, skill, numbers and time words, and picks one of the nine answers. It is free, runs on your computer and sends nothing anywhere. It can only point at the functions in `chatbot/queries.py`, which check every value again.
+The daily run stays on Windows Task Scheduler (`python run_pipeline.py`, optionally with `--export-site`). Each run adds a line to `data/pipeline.log` and exits 0 or 1; a failed run is also a row in `pipeline_runs`. After a refresh, commit `site/data/jobs.json` and push: the workflow deploys it.
 
-Every answer starts with a line such as `Understood as: salary: data analyst, in Cairo`, so a wrong reading is visible. When a question is not about this data (a role, city or skill that is not here, or a subject unrelated to jobs), the router refuses instead of guessing. When a limit applies, a `Note:` line says so: seniority is not tracked, some job titles are grouped under "other", and most answers do not filter by date.
+## Keeping Python and the browser identical
 
-Limits of this router: it understands the wording it was written for, and unusual phrasing can get a refusal or a different reading than you meant. It cannot answer a question that none of the nine answers covers, and it cannot write new queries. How often it is right on questions it was not built around is in `docs/accuracy.md`: about 80 percent on the first run of three question sets.
+`make_router_golden.py` writes `tests/data/router_golden.json`: what the Python chatbot answers for 350+ questions. `node --test` replays every one in JavaScript, and a Python test fails if the file is stale. Change the router, answers or sample data, then run `python make_router_golden.py`.
 
-Each question and the answer it was routed to are logged in `data/chat.log`.
+## Layout
 
-### The web page
+`config.py` shared lists and limits · `mock_source/` generator · `collect/` · `clean/` (rules, cleaner, quality) · `db/` · `chatbot/` (router, queries, text, service, AI) · `site/` static website · `export_site_data.py` · `tests/`, `tests_js/` · `docs/` (accuracy, UI brief) · `show.py` prints a table from the database.
 
-```
-streamlit run app.py
-```
-
-The page uses `data/jobs.duckdb` when it exists and `data/sample.duckdb` otherwise. It has a search box, clickable example questions grouped by topic, a "How to ask" panel, an "Read as" line that shows how the question was understood, follow-up questions after every answer, and a short note that all data is synthetic. It follows the light or dark setting of the visitor's device and works on a phone. Fonts load from Google Fonts. The page only talks to `chatbot/service.py`, escapes everything it shows, and has tests for that in `tests/test_app.py`.
-
-### The service behind it
-
-`chatbot/service.py` is the one door a web page should use. It opens the database read-only, limits how often one visitor can ask, and returns the answer, the numbers, follow-up questions and advice on how to ask. `docs/ui-brief.md` describes the page to build on top of it. `python make_sample_db.py` builds `data/sample.duckdb`, a small synthetic database that is safe to publish.
-
-### Optional: an AI router
-
-```
-python -m chatbot.chat --ai "what does a data analyst earn in Cairo?"
-```
-
-An AI model picks the answer instead of the rules. It never sees the database and it does not write the reply: the program runs the chosen function and writes the answer from the query result. Only the typed question is sent to the AI service, and the service may charge for it.
-
-To use it, create a file named `.env` in the project folder with the line `LLM_API_KEY=` followed by your key (see `.env.example`). The file is listed in `.gitignore`, and a test fails if a key-like string appears anywhere else in the project. The default model is `claude-haiku-5-5`, which you can change with `LLM_MODEL` in the same file.
+More: `CHANGES.md` lists what changed and why. Franco-Arabic ("kam wazifa") is deliberately not supported.
