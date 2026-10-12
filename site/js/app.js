@@ -39,7 +39,7 @@ function ask(question) {
     out.append(answerView(reply, { label, onAsk: ask }));
     $("status").textContent = `Answer: ${reply.understood || "done"}`;
   } else {
-    const near = question.trim() ? chatbot.suggest(question) : [];
+    const near = question.trim() ? (reply.did_you_mean.length ? reply.did_you_mean : chatbot.suggest(question)) : [];
     out.append(refusalView(reply, { asked: question, near, onAsk: ask }));
     $("status").textContent = "No answer for that question. Suggestions are shown.";
   }

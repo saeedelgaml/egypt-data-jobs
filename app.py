@@ -120,7 +120,7 @@ def show_reply(reply, service):
     st.markdown("### That one I can't answer")
     st.text(reply["hint"] or reply["text"].split("\n\n")[0])
     typed = st.session_state.get("asked", "")
-    near = service.suggest(typed) if typed else []
+    near = (reply.get("did_you_mean") or service.suggest(typed)) if typed else []
     if near:
         chips(near, "near", "Did you mean")
     if reply["tips"]:

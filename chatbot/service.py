@@ -13,11 +13,13 @@ import time
 from collections import deque
 from datetime import date
 
+from difflib import SequenceMatcher
+
 import duckdb
 
 from chatbot.ai import MAX_QUESTION_CHARS, answer_question
-from chatbot.router import RuleRouter
-from config import CITIES, EXAMPLES, HOW_TO_ASK, PLURAL
+from chatbot.router import ALLOWED, RuleRouter, _normalize
+from config import CITIES, EXAMPLES, GENERIC_QUESTIONS, HOW_TO_ASK, PLURAL
 from db.schema import DEFAULT_DB_PATH
 
 SAMPLE_DB_PATH = DEFAULT_DB_PATH.parent / "sample.duckdb"
@@ -156,7 +158,8 @@ class Service:
         except Exception as problem:  # never show internals to a visitor
             return self._reply(False, f"Something went wrong ({type(problem).__name__}). Please try again.")
         if not result["ok"]:
-            return self._reply(False, result["text"], tips=True, hint=result.get("hint"))
+            return self._reply(False, result["text"], tips=True, hint=result.get("hint"),
+                           did_you_mean=self.did_you_mean(question))
         return self._reply(True, result["text"], function=result["function"], params=result["params"],
                            data=result["data"], understood=result["understood"], notes=result["notes"],
                            follow_ups=follow_ups(result["function"], result["params"]))
@@ -164,7 +167,7 @@ class Service:
     @staticmethod
     def _reply(ok, text, tips=False, **extra):
         reply = {"ok": ok, "text": text, "function": None, "params": {}, "data": None, "understood": None,
-                 "notes": [], "follow_ups": [], "limited": False, "retry_after": 0, "hint": None,
+                 "notes": [], "follow_ups": [], "limited": False, "retry_after": 0, "hint": None, "did_you_mean": [],
                  "tips": HOW_TO_ASK if tips else [], "examples": EXAMPLES if tips else {}}
         reply.update(extra)
         return reply
@@ -187,6 +190,15 @@ class Service:
         words = [w for w in str(typed or "").lower()[:100].split() if w]
         if not words:
             return []
+        scored = []
+        for q in self._pool():
+            low = q.lower()
+            if all(w in low for w in words):
+                scored.append((0 if low.startswith(words[0]) else 1, len(q), q))
+        return [q for _, _, q in sorted(scored)[:limit]]
+
+    def _pool(self):
+        """Every known-good question we can offer as a suggestion."""
         pool = [q for group in EXAMPLES.values() for q in group] + [t["example"] for t in HOW_TO_ASK]
         facts_skills = [r[0] for r in self.con.cursor().execute("SELECT skill FROM skills").fetchall()]
         pool += [f"What skills go with {s}?" for s in facts_skills]
@@ -195,9 +207,20 @@ class Service:
         pool += [f"Who is hiring {r}?" for r in PLURAL.values()]
         pool += [f"What skills do {r} need?" for r in PLURAL.values()]
         pool += [f"{r[:1].upper() + r[1:]} jobs in {c}" for r in PLURAL.values() for c in CITIES]
+        pool += GENERIC_QUESTIONS
+        return list(dict.fromkeys(pool))
+
+    def did_you_mean(self, question, limit=2, cutoff=0.5):
+        """One or two known-good questions that look like a question we could not answer. The words
+        are typo-repaired first; a suggestion must share the question's key words or look similar."""
+        text = self.router._fix_typos(_normalize(str(question or "")))
+        words = {w for w in text.split() if w not in ALLOWED}
         scored = []
-        for q in dict.fromkeys(pool):
-            low = q.lower()
-            if all(w in low for w in words):
-                scored.append((0 if low.startswith(words[0]) else 1, len(q), q))
+        for q in self._pool():
+            candidate = _normalize(q)
+            score = SequenceMatcher(None, candidate, text).ratio()
+            hits = len(words & set(candidate.split())) / len(words) if words else 0
+            score = max(score, 0.9 * hits if hits >= 0.5 else 0)
+            if score >= cutoff:
+                scored.append((-score, len(q), q))
         return [q for _, _, q in sorted(scored)[:limit]]

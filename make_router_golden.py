@@ -69,6 +69,10 @@ def questions():
             add(q)
     for tip in config.HOW_TO_ASK:
         add(tip["example"])
+    for item in json.loads((ROOT / "tests" / "data" / "phrasings.json").read_text(encoding="utf-8")):
+        add(item[0])
+    for q in ["whos the boss of data", "best companies to work for", "what pays well in egypt", "chef salary", "how to get hired"]:
+        add(q)
     for key, spec in config.ROLES.items():
         if key == "other":
             continue
@@ -97,7 +101,7 @@ def build(db_path=SAMPLE):
                 "q": q, "ok": reply["ok"], "text": reply["text"], "function": reply["function"],
                 "params": reply["params"], "data": reply["data"], "understood": reply["understood"],
                 "notes": reply["notes"], "follow_ups": reply["follow_ups"], "hint": reply["hint"],
-                "has_tips": bool(reply["tips"]),
+                "has_tips": bool(reply["tips"]), "did_you_mean": reply["did_you_mean"],
             })
         suggestions = [{"typed": t, "out": service.suggest(t)} for t in SUGGEST]
     finally:

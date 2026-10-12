@@ -2,7 +2,7 @@
 // lists, regular expressions and fixed sentences are read from the data file (they are exported
 // from the Python file, so the two cannot drift apart); only the logic is written here.
 // It can only point at the nine answers in queries.js. No AI model, no key, nothing is sent anywhere.
-import { closeMatch } from "./difflib.js";
+import { closestWord } from "./difflib.js";
 import { floatMoney, money } from "./pyfmt.js";
 
 const NUMERIC = /^\d+$/;
@@ -57,23 +57,24 @@ export function createRouter(cfg, skills) {
   const roleWords = new Set([...rolePhrases].flatMap((p) => p.split(" ")));
   const skillTable = table([...skillPhrases].map(([name, set]) => [name, [...set].filter((p) => !rolePhrases.has(p)).sort()]));
 
-  const words5 = (text) => text.match(/[a-z]{5,}/g) || [];
+  const minLength = R.typo.min_length;
+  const wordsLong = (text) => text.match(new RegExp(`[a-z]{${minLength},}`, "g")) || [];
   const vocabulary = new Set(intentWords);
   for (const phrases of [...Object.values(R.role_phrases), ...Object.values(R.city_phrases)]) {
-    phrases.forEach((p) => words5(p).forEach((w) => vocabulary.add(w)));
+    phrases.forEach((p) => wordsLong(p).forEach((w) => vocabulary.add(w)));
   }
-  skills.forEach((s) => words5(s.toLowerCase()).forEach((w) => vocabulary.add(w)));
+  skills.forEach((s) => wordsLong(s.toLowerCase()).forEach((w) => vocabulary.add(w)));
   const vocabularyList = [...vocabulary].sort();
   const vocabularySet = new Set(vocabulary);
   for (const phrases of [...[...skillPhrases.values()].map((s) => [...s]), ...Object.values(R.role_phrases),
                          ...Object.values(R.city_phrases)]) {
-    phrases.forEach((p) => words5(p).forEach((w) => vocabularySet.add(w)));
+    phrases.forEach((p) => wordsLong(p).forEach((w) => vocabularySet.add(w)));
   }
 
   function fixTypos(text) {
-    return text.replace(/[a-z]{5,}/g, (word) => {
+    return text.replace(new RegExp(`[a-z]{${minLength},}`, "g"), (word) => {
       if (vocabularySet.has(word) || allowed.has(word)) return word;
-      return closeMatch(word, vocabularyList, 0.83) ?? word;
+      return closestWord(word, vocabularyList, R.typo.cutoff) ?? word;
     });
   }
 
@@ -272,7 +273,7 @@ export function createRouter(cfg, skills) {
       return refusal(T.AMBIGUOUS_HINT);
     } else if (has.city && !city) {
       fn = "jobs_by_city"; params = { role, skill };
-    } else if (rx.ROLE_ASK.test(text) && !roleNames.length) {
+    } else if ((rx.ROLE_ASK.test(text) || (has.most && rx.ROLE_MOST.test(text) && rx.VOLUME.test(text))) && !roleNames.length) {
       fn = "jobs_by_role"; params = { city, skill };
     } else if (has.count && daysValue === null && !has.strict_new) {
       fn = "count_postings"; params = { role, city, skill };
@@ -294,6 +295,7 @@ export function createRouter(cfg, skills) {
     };
   }
 
+  route.fixTypos = fixTypos;
   return route;
 }
 

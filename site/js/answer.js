@@ -1,7 +1,8 @@
 // The one door the page uses (a port of chatbot/ai.py answer_question and chatbot/service.py):
 // ask(question) returns the answer text, the numbers behind it, follow-up questions and tips.
 // Everything runs in the browser on the rows in jobs.json.
-import { createRouter } from "./router.js";
+import { createRouter, normalize } from "./router.js";
+import { ratio } from "./difflib.js";
 import { createDatabase } from "./queries.js";
 import { createFormatter } from "./text.js";
 
@@ -80,7 +81,7 @@ export function createChatbot(payload) {
   function ask(question) {
     const reply = (ok, text, tips = false, extra = {}) => ({
       ok, text, function: null, params: {}, data: null, understood: null, notes: [], follow_ups: [],
-      hint: null, tips: tips ? HOW_TO_ASK : [], examples: tips ? EXAMPLES : {}, ...extra,
+      hint: null, did_you_mean: [], tips: tips ? HOW_TO_ASK : [], examples: tips ? EXAMPLES : {}, ...extra,
     });
     if (typeof question !== "string" || !question.trim()) {
       return reply(false, "Type a question, or click one of the examples.", true);
@@ -92,24 +93,48 @@ export function createChatbot(payload) {
     } catch (problem) {
       return reply(false, `Something went wrong (${problem?.name || "Error"}). Please try again.`);
     }
-    if (!result.ok) return reply(false, result.text, true, { hint: result.hint ?? null });
+    if (!result.ok) return reply(false, result.text, true, { hint: result.hint ?? null, did_you_mean: didYouMean(question) });
     return reply(true, result.text, false, {
       function: result.function, params: result.params, data: result.data, understood: result.understood,
       notes: result.notes, follow_ups: followUps(result.function, result.params),
     });
   }
 
+  const allowedWords = new Set(cfg.router.allowed);
+
+  function pool() {
+    const plurals = Object.values(PLURAL);
+    const out = [...Object.values(EXAMPLES).flat(), ...HOW_TO_ASK.map((t) => t.example)];
+    out.push(...db.skills.map((s) => `What skills go with ${s}?`), ...db.skills.map((s) => `How many postings list ${s}?`));
+    out.push(...plurals.map((r) => `What does ${article(r.slice(0, -1))} earn?`));
+    out.push(...plurals.map((r) => `Who is hiring ${r}?`), ...plurals.map((r) => `What skills do ${r} need?`));
+    for (const r of plurals) for (const c of cfg.cities) out.push(`${r.charAt(0).toUpperCase() + r.slice(1)} jobs in ${c}`);
+    out.push(...cfg.generic);
+    return [...new Set(out)];
+  }
+
+  /** One or two known-good questions that look like a question we could not answer (same rule as service.py). */
+  function didYouMean(question, limit = 2, cutoff = 0.5) {
+    const text = route.fixTypos(normalize(String(question ?? "")));
+    const words = new Set(text.split(" ").filter((w) => w && !allowedWords.has(w)));
+    const scored = [];
+    for (const q of pool()) {
+      const candidate = normalize(q);
+      let score = ratio(candidate, text);
+      const cwords = new Set(candidate.split(" "));
+      const hits = words.size ? [...words].filter((w) => cwords.has(w)).length / words.size : 0;
+      score = Math.max(score, hits >= 0.5 ? 0.9 * hits : 0);
+      if (score >= cutoff) scored.push([-score, q.length, q]);
+    }
+    scored.sort((a, b) => a[0] - b[0] || a[1] - b[1] || (a[2] < b[2] ? -1 : a[2] > b[2] ? 1 : 0));
+    return scored.slice(0, limit).map((s) => s[2]);
+  }
+
   function suggest(typed, limit = 6) {
     const words = String(typed || "").toLowerCase().slice(0, 100).split(/\s+/).filter(Boolean);
     if (!words.length) return [];
-    const plurals = Object.values(PLURAL);
-    const pool = [...Object.values(EXAMPLES).flat(), ...HOW_TO_ASK.map((t) => t.example)];
-    pool.push(...db.skills.map((s) => `What skills go with ${s}?`), ...db.skills.map((s) => `How many postings list ${s}?`));
-    pool.push(...plurals.map((r) => `What does ${article(r.slice(0, -1))} earn?`));
-    pool.push(...plurals.map((r) => `Who is hiring ${r}?`), ...plurals.map((r) => `What skills do ${r} need?`));
-    for (const r of plurals) for (const c of cfg.cities) pool.push(`${r.charAt(0).toUpperCase() + r.slice(1)} jobs in ${c}`);
     const scored = [];
-    for (const q of new Set(pool)) {
+    for (const q of pool()) {
       const low = q.toLowerCase();
       if (words.every((w) => low.includes(w))) scored.push([low.startsWith(words[0]) ? 0 : 1, q.length, q]);
     }

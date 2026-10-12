@@ -62,7 +62,7 @@ def build_payload(con):
             "max_limit": config.MAX_LIMIT, "max_days": config.MAX_DAYS, "max_salary": config.MAX_SALARY,
             "min_group": config.MIN_GROUP, "company_not_disclosed": config.COMPANY_NOT_DISCLOSED, "max_question_chars": config.MAX_QUESTION_CHARS,
             "cities": config.CITIES, "roles": roles, "plural": config.PLURAL,
-            "examples": config.EXAMPLES, "how_to_ask": config.HOW_TO_ASK, "help": HELP,
+            "examples": config.EXAMPLES, "generic": config.GENERIC_QUESTIONS, "how_to_ask": config.HOW_TO_ASK, "help": HELP,
             "router": router_module.export_config(),
         },
         "skills": skills,

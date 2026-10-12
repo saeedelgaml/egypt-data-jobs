@@ -25,6 +25,7 @@ for (const [index, c] of golden.cases.entries()) {
     assert.deepEqual(reply.follow_ups, c.follow_ups);
     assert.equal(reply.hint, c.hint);
     assert.equal(reply.tips.length > 0, c.has_tips);
+    assert.deepEqual(reply.did_you_mean, c.did_you_mean);
   });
 }
 

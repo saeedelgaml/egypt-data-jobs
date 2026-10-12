@@ -328,6 +328,13 @@ EXAMPLES = {
     ],
 }
 
+# Broad questions offered as "Did you mean" suggestions when a question cannot be answered.
+GENERIC_QUESTIONS = [
+    "Which role pays the most?", "Which city pays the most?", "Which skill pays the most?",
+    "Which company is hiring the most?", "What skills are most in demand?", "Which city has the most postings?",
+    "Which role has the most openings?", "Show the newest postings", "How many postings are there?",
+]
+
 # Advice on how to ask. Each tip has an example that a test checks.
 HOW_TO_ASK = [
     {"title": "Name a role", "tip": "Data analyst, BI developer, business analyst, data engineer, analytics engineer, data scientist, ML engineer, AI engineer, MLOps, NLP, computer vision, data architect, big data or GenAI/LLM engineer.",

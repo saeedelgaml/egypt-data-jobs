@@ -45,6 +45,33 @@ export function ratio(a, b) {
   return total ? (2.0 * matchedCharacters(a, b)) / total : 1.0;
 }
 
+/** Number of single-letter inserts, deletes and changes that turn a into b. */
+export function editDistance(a, b) {
+  let previous = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const row = [i];
+    for (let j = 1; j <= b.length; j++) {
+      row.push(Math.min(previous[j] + 1, row[j - 1] + 1, previous[j - 1] + (a[i - 1] !== b[j - 1] ? 1 : 0)));
+    }
+    previous = row;
+  }
+  return previous[b.length];
+}
+
+/** The known word a misspelt word most likely means (same rule as chatbot/router.py closest_word). */
+export function closestWord(word, vocabulary, cutoff) {
+  const allowedEdits = word.length <= 5 ? 1 : 2;
+  let best = null;
+  for (const candidate of vocabulary) {
+    if (Math.abs(candidate.length - word.length) > allowedEdits || editDistance(word, candidate) > allowedEdits) continue;
+    const score = ratio(candidate, word);
+    if (score >= cutoff && (best === null || score > best.score || (score === best.score && candidate > best.word))) {
+      best = { score, word: candidate };
+    }
+  }
+  return best ? best.word : null;
+}
+
 /** The best match at or above the cutoff, or null. Ties go to the larger string, as in Python. */
 export function closeMatch(word, possibilities, cutoff = 0.6) {
   let best = null;

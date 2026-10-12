@@ -12,7 +12,7 @@ The router returns a dict: function, params, understood (a short description),
 notes (honest limits that apply to this answer) and hint (shown with a refusal).
 """
 import re
-from difflib import get_close_matches
+from difflib import SequenceMatcher
 
 from config import (CITY_PHRASES, MAX_DAYS, MAX_LIMIT, ROLE_LABEL, ROLE_PHRASES, SEED_ROLES,
                     SKILL_QUERY_ALIASES as SKILL_ALIASES)
@@ -63,7 +63,10 @@ like just really actually basically maybe probably kinda sorta very quite pretty
 yet already again ever never always sometimes often soon later earlier ago before after during until
 while since because though although however so than then therefore if unless whether either neither
 both such same other another each every either own few little lot lots plenty enough several
-more everything anything something nothing there among amongst across whos hows whats wheres kinds kind types type""".split())
+more everything anything something nothing there among amongst earning earnings earner earners posted across whos hows whats wheres kinds kind types type""".split())
+
+TYPO_MIN_LENGTH = 4
+TYPO_CUTOFF = 0.8
 
 # ---- patterns -----------------------------------------------------------------
 
@@ -90,7 +93,7 @@ OTHERS_RE = _word(r"else|other|also|buddies|buddy|friends|partners|companions|al
 COMPANY_RE = re.compile(
     r"(?<![a-z])(?:compan(?:y|ies)|employers?|firms?|organi[sz]ations?|businesses|recruiters?|hirers?|"
     r"who(?:s| is| are)? (?:hiring|recruiting|postings?|looking|offering)|who hires|who employs|"
-    r"hiring the most)(?![a-z])")
+    r"hiring the most|who (?:has|have|got) the most)(?![a-z])")
 CITY_RE = _word(r"cit(?:y|ies)|locations?|where|areas?|places?|regions?|governorates?|\u0645\u062f\u064a\u0646\u0629|\u0645\u062f\u0646")
 NEW_RE = _word(r"new|newest|latest|recent|recently|fresh|freshest|just posted|posted|openings?|"
                r"vacanc(?:y|ies)|listings?|list|show|display|find|any|available|current|currently|open")
@@ -119,6 +122,7 @@ BREAKDOWN_RE = _word(r"breakdown|break down|distribution|split|by role|per role|
 FILTER_WORD_RE = re.compile(r"(?<![a-z])(?:needs?|needing|requires?|requiring|uses?|using|knows?|knowing|"
                             r"lists?|listing|with|has|have|does|do|at|from|for)\s+([a-z0-9#+.\-]+)")
 STRONG_ROLE_RE = _word(r"roles?|titles?|fields?|specializations?|specialisations?")
+ROLE_MOST_RE = _word(r"positions?|job types?")
 ROLE_ASK_RE = _word(r"roles?|titles?|fields?|specializations?|specialisations?|job types?|kinds? of jobs?|"
                     r"types? of jobs?|by role|per role|each role")
 TIME_NOTE_RE = _word(r"today|yesterday|tonight|this week|last week|this month|last month|this year|"
@@ -191,6 +195,33 @@ LABELS = {
 }
 
 
+def edit_distance(a, b):
+    """Number of single-letter inserts, deletes and changes that turn a into b."""
+    previous = list(range(len(b) + 1))
+    for i, x in enumerate(a, 1):
+        row = [i]
+        for j, y in enumerate(b, 1):
+            row.append(min(previous[j] + 1, row[j - 1] + 1, previous[j - 1] + (x != y)))
+        previous = row
+    return previous[-1]
+
+
+def closest_word(word, vocabulary):
+    """The known word a misspelt word most likely means, or None. A word must be at least
+    TYPO_MIN_LENGTH letters, differ by at most 1 edit (up to 5 letters) or 2 edits (longer), and score
+    at least TYPO_CUTOFF on difflib's similarity ratio, so short or unusual words are left alone.
+    Ties go to the alphabetically larger word (the same rule in the browser)."""
+    allowed_edits = 1 if len(word) <= 5 else 2
+    best = None
+    for candidate in vocabulary:
+        if abs(len(candidate) - len(word)) > allowed_edits or edit_distance(word, candidate) > allowed_edits:
+            continue
+        score = SequenceMatcher(None, candidate, word).ratio()
+        if score >= TYPO_CUTOFF and (best is None or (score, candidate) > best):
+            best = (score, candidate)
+    return best[1] if best else None
+
+
 def _number(token):
     return int(token) if token.isdigit() else NUMBER_WORDS[token]
 
@@ -229,13 +260,13 @@ class RuleRouter:
         self._skill_re, self._skill_map = self._table({k: sorted(v - role_phrases) for k, v in skill_phrases.items()})
         vocabulary = set(INTENT_WORDS)
         for phrases in (*ROLE_PHRASES.values(), *CITY_PHRASES.values()):
-            vocabulary.update(w for p in phrases for w in re.findall(r"[a-z]{5,}", p))
-        vocabulary.update(w for s in self.skills for w in re.findall(r"[a-z]{5,}", s.lower()))
+            vocabulary.update(w for p in phrases for w in re.findall(r"[a-z]{4,}", p))
+        vocabulary.update(w for s in self.skills for w in re.findall(r"[a-z]{4,}", s.lower()))
         self._vocabulary = sorted(vocabulary)
         self._vocabulary_set = set(vocabulary)
         for phrases in (*skill_phrases.values(), *ROLE_PHRASES.values(), *CITY_PHRASES.values()):
             for phrase in phrases:
-                self._vocabulary_set.update(re.findall(r"[a-z]{5,}", phrase))
+                self._vocabulary_set.update(re.findall(r"[a-z]{4,}", phrase))
 
     @staticmethod
     def _table(phrases_by_name):
@@ -252,9 +283,8 @@ class RuleRouter:
             word = match.group(0)
             if word in self._vocabulary_set or word in ALLOWED:
                 return word
-            close = get_close_matches(word, self._vocabulary, n=1, cutoff=0.83)
-            return close[0] if close else word
-        return re.sub(r"[a-z]{5,}", repair, text)
+            return closest_word(word, self._vocabulary) or word
+        return re.sub(r"[a-z]{%d,}" % TYPO_MIN_LENGTH, repair, text)
 
     @staticmethod
     def _find(pattern, mapping, text):
@@ -358,7 +388,8 @@ class RuleRouter:
             return refusal(AMBIGUOUS_HINT)
         elif has["city"] and not city:
             choice = ("jobs_by_city", {"role": role, "skill": skill})
-        elif ROLE_ASK_RE.search(text) and not role_names:
+        elif (ROLE_ASK_RE.search(text) or (has["most"] and ROLE_MOST_RE.search(text) and VOLUME_RE.search(text))) \
+                and not role_names:
             choice = ("jobs_by_role", {"city": city, "skill": skill})
         elif has["count"] and days is None and not has["strict_new"]:
             choice = ("count_postings", {"role": role, "city": city, "skill": skill})
@@ -511,7 +542,7 @@ _EXPORTED_PATTERNS = {
     "DOMAIN": DOMAIN_RE, "SENIORITY": SENIORITY_RE, "STRICT_NEW": STRICT_NEW_RE, "VOLUME": VOLUME_RE,
     "TREND": TREND_RE, "ADVICE": ADVICE_RE, "MUTATE": MUTATE_RE, "CONTACT": CONTACT_RE,
     "INJECTION": INJECTION_RE, "FILTER_WORD": FILTER_WORD_RE, "STRONG_ROLE": STRONG_ROLE_RE,
-    "ROLE_ASK": ROLE_ASK_RE, "TIME_NOTE": TIME_NOTE_RE, "AMOUNT": AMOUNT_RE, "TIME": TIME_RE,
+    "ROLE_ASK": ROLE_ASK_RE, "ROLE_MOST": ROLE_MOST_RE, "TIME_NOTE": TIME_NOTE_RE, "AMOUNT": AMOUNT_RE, "TIME": TIME_RE,
     "PERIOD": PERIOD_RE, "DAY_WORD": DAY_WORD_RE, "PLACE": PLACE_RE,
 }
 
@@ -536,5 +567,5 @@ def export_config():
         "limit_patterns": [rx.pattern for rx in LIMIT_RES],
         "subject_patterns": [rx.pattern for rx in SUBJECT_RES],
         "group_nouns": {name: rx.pattern for name, rx in GROUP_NOUNS.items()},
-        "text": _EXPORTED_TEXT,
+        "text": _EXPORTED_TEXT, "typo": {"min_length": TYPO_MIN_LENGTH, "cutoff": TYPO_CUTOFF},
     }
