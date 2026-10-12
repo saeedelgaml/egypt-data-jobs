@@ -29,7 +29,8 @@ latest newest recent recently openings vacancies postings positions highest lowe
 median location locations together alongside hiring recruiting analyst analysts engineer engineers
 scientist scientists developer developers machine learning intelligence business database
 administrator research specialist reporting manager alexandria remote remotely cairo
-paying cities city posting hiring recruiting""".split()
+paying cities city posting hiring recruiting
+useful usefull important valuable essential necessary relevant popular""".split()
 
 INTENT_SET = set(INTENT_WORDS)
 NUMBER_WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7,
@@ -222,7 +223,10 @@ class RuleRouter:
         for canonical, aliases in SKILL_ALIASES.items():
             if canonical.lower() in by_lower:
                 skill_phrases[by_lower[canonical.lower()]].update(aliases)
-        self._skill_re, self._skill_map = self._table({k: sorted(v) for k, v in skill_phrases.items()})
+        # A word that belongs to a role name is never a skill, and never an unknown word.
+        role_phrases = {p for phrases in ROLE_PHRASES.values() for p in phrases}
+        self._role_words = {w for p in role_phrases for w in p.split()}
+        self._skill_re, self._skill_map = self._table({k: sorted(v - role_phrases) for k, v in skill_phrases.items()})
         vocabulary = set(INTENT_WORDS)
         for phrases in (*ROLE_PHRASES.values(), *CITY_PHRASES.values()):
             vocabulary.update(w for p in phrases for w in re.findall(r"[a-z]{5,}", p))
@@ -444,7 +448,7 @@ class RuleRouter:
         or ordinary word, such as an unknown skill or company name."""
         for match in FILTER_WORD_RE.finditer(text):
             word = match.group(1).strip(".-")
-            if (not word or word[0].isdigit() or word in ALLOWED or word in INTENT_SET
+            if (not word or word[0].isdigit() or word in ALLOWED or word in INTENT_SET or word in self._role_words
                     or word in NUMBER_WORDS or word.startswith("zz") or not word.isascii()):
                 continue
             return word

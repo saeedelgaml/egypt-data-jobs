@@ -144,3 +144,35 @@ def test_new_skills_are_known_to_the_router(router):
 
 def test_a_skill_that_is_not_in_the_data_is_still_refused(router):
     assert router[0]("how many jobs need cobol")["function"] is None
+
+
+# ---- field names ("ai engineering"), "most useful skills" and typos ----------------------------
+from config import FIELD_NAMES  # noqa: E402
+
+
+@pytest.mark.parametrize("role, field", [(r, f) for r, names in FIELD_NAMES.items() for f in names])
+@pytest.mark.parametrize("template", ["what are the most useful skills for {}", "most important skills for {}",
+                                       "best skills needed for {}", "which skills are in demand for {}"])
+def test_field_names_are_the_matching_role_and_ask_for_top_skills(router, role, field, template):
+    choice = router[0](template.format(field))
+    assert choice["function"] == "top_skills" and choice["params"].get("role") == role, (field, choice)
+
+
+def test_every_role_has_a_field_name():
+    assert set(FIELD_NAMES) == set(DATA_ROLES)
+
+
+@pytest.mark.parametrize("question", [
+    "what are the most usefull skills for ai engineering", "most importnat skills for ai engineering",
+    "what are the most usefull skils for ai enginering", "most valueable skills for data engineering"])
+def test_common_typos_do_not_stop_the_answer(router, question):
+    choice = router[0](question)
+    assert choice["function"] == "top_skills" and choice["params"]["role"] in ROLES, question
+
+
+def test_no_word_of_a_role_name_is_a_skill_or_unknown(router):
+    route, _ = router
+    for words in ("ai", "nlp", "ml", "vision", "architect", "intelligence", "science"):
+        hint = route(f"top skills for {words}").get("hint") or ""
+        assert "do not recognize" not in hint, words
+    assert route("most useful skills for ai engineering")["params"] == {"role": "ai_engineer"}

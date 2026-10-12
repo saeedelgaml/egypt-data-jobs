@@ -53,7 +53,9 @@ export function createRouter(cfg, skills) {
   for (const [canonical, aliases] of Object.entries(R.skill_aliases)) {
     if (byLower.has(canonical.toLowerCase())) aliases.forEach((a) => skillPhrases.get(byLower.get(canonical.toLowerCase())).add(a));
   }
-  const skillTable = table([...skillPhrases].map(([name, set]) => [name, [...set].sort()]));
+  const rolePhrases = new Set(Object.values(R.role_phrases).flat());
+  const roleWords = new Set([...rolePhrases].flatMap((p) => p.split(" ")));
+  const skillTable = table([...skillPhrases].map(([name, set]) => [name, [...set].filter((p) => !rolePhrases.has(p)).sort()]));
 
   const words5 = (text) => text.match(/[a-z]{5,}/g) || [];
   const vocabulary = new Set(intentWords);
@@ -142,7 +144,7 @@ export function createRouter(cfg, skills) {
   function unknownFilter(text) {
     for (const m of text.matchAll(globalOf(rx.FILTER_WORD.source))) {
       const word = m[1].replace(/^[.-]+|[.-]+$/g, "");
-      if (!word || /^\d/.test(word) || allowed.has(word) || intentSet.has(word) || Object.hasOwn(numberWords, word) ||
+      if (!word || /^\d/.test(word) || allowed.has(word) || intentSet.has(word) || roleWords.has(word) || Object.hasOwn(numberWords, word) ||
           word.startsWith("zz") || /[^\x00-\x7F]/.test(word)) continue;
       return word;
     }

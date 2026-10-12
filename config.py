@@ -216,6 +216,21 @@ PATTERN_ORDER = ["mlops_engineer", "genai_engineer", "nlp_engineer", "computer_v
                  "ml_engineer", "ai_engineer", "big_data_engineer", "data_engineer", "analytics_engineer",
                  "data_architect", "data_scientist", "business_analyst", "data_analyst", "bi_developer"]
 
+# How people name the field instead of the job ("skills for AI engineering"). Each one is added to
+# the role's router phrases, so a field name is never mistaken for an unknown skill or subject.
+FIELD_NAMES = {
+    "data_analyst": ["data analysis"], "bi_developer": ["business intelligence"],
+    "business_analyst": ["business analysis"], "data_engineer": ["data engineering"],
+    "analytics_engineer": ["analytics engineering"], "data_scientist": ["data science"],
+    "ml_engineer": ["ml engineering", "machine learning engineering"], "ai_engineer": ["ai engineering"],
+    "mlops_engineer": ["mlops engineering", "ml ops engineering"], "nlp_engineer": ["nlp engineering"],
+    "computer_vision_engineer": ["computer vision engineering"], "data_architect": ["data architecture"],
+    "big_data_engineer": ["big data engineering"],
+    "genai_engineer": ["genai engineering", "gen ai engineering", "generative ai engineering", "llm engineering"],
+}
+for _key, _names in FIELD_NAMES.items():
+    ROLES[_key]["phrases"] += [n for n in _names if n not in ROLES[_key]["phrases"]]
+
 # ---- skills -----------------------------------------------------------------------------
 # canonical name -> other ways a job board writes it (the cleaner maps them back).
 SKILL_VARIANTS = {
