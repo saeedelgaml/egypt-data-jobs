@@ -22,7 +22,7 @@ from clean.rules import (
     ("Business Intelligence Developer (Hybrid)", "bi_developer"),
     ("bi developer", "bi_developer"),
     ("Data Entry Specialist", "other"),
-    ("Business Analyst", "other"),
+    ("Business Analyst", "business_analyst"),
     ("Database Administrator", "other"),
     ("Analytics Manager", "other"),
     ("Backend Developer", "other"),

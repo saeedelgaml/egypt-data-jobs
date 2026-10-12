@@ -123,7 +123,7 @@ def test_top_companies_for_one_role(con, truth):
 def test_jobs_by_city_matches_the_answer_key(con, truth):
     counts = Counter(t["city"] for _, t in truth if t["city"])
     got = result(con, "jobs_by_city")
-    assert [(c["city"], c["postings"]) for c in got["cities"]] == ranked(counts, 10)
+    assert [(c["city"], c["postings"]) for c in got["cities"]] == ranked(counts, 20)
     assert got["no_city"] == sum(1 for _, t in truth if not t["city"])
 
 
@@ -420,7 +420,7 @@ def test_text_for_the_new_answers(con):
 def test_jobs_by_role_matches_the_answer_key(con, truth):
     counts = Counter(t["role"] for _, t in truth if t["role"])
     got = result(con, "jobs_by_role")
-    assert [(r["role"], r["postings"]) for r in got["roles"]] == ranked(counts, 10)
+    assert [(r["role"], r["postings"]) for r in got["roles"]] == ranked(counts, 20)
 
 
 def test_jobs_by_role_in_one_city_adds_up_to_that_city(con, truth):

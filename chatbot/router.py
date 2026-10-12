@@ -166,7 +166,7 @@ TREND_HINT = "I only have a snapshot of the current postings, so I cannot show t
 ADVICE_HINT = "I can show the data, but I cannot give advice about what to choose."
 PLACE_HINT = "I only have postings in Cairo, Giza, Alexandria and Remote."
 
-TITLE_NOTE = ("Titles such as business analyst, database administrator and data entry specialist "
+TITLE_NOTE = ("Titles such as database administrator, data entry specialist and research analyst "
               "are grouped under 'other'.")
 SENIORITY_NOTE = "Seniority is not tracked, so this covers all levels."
 AMBIGUOUS_HINT = ("Do you mean the most postings or the highest pay? Try: which city has the most "

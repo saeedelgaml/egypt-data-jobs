@@ -13,7 +13,7 @@ from collect.collector import collect_range
 from db.schema import connect, create_tables
 
 SAMPLE_PATH = Path(__file__).parent / "data" / "sample.duckdb"
-DAYS = 30
+DAYS = 60
 
 
 def build(path=SAMPLE_PATH, start=date(2026, 10, 1), days=DAYS):

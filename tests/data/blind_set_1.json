@@ -434,7 +434,7 @@
   "ambiguous": false
  },
  {
-  "q": "how many jobs need snowflake",
+  "q": "how many jobs need cobol",
   "expect": "REFUSE",
   "ambiguous": false
  },

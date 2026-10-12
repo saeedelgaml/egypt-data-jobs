@@ -7,7 +7,8 @@ import re
 
 from config import ROLE_PATTERNS, SKILL_VARIANTS
 
-ACRONYMS = {"Ai": "AI", "Bi": "BI", "Ml": "ML", "Ii": "II", "Qa": "QA", "Etl": "ETL"}
+ACRONYMS = {"Ai": "AI", "Bi": "BI", "Ml": "ML", "Ii": "II", "Qa": "QA", "Etl": "ETL", "Nlp": "NLP",
+            "Cv": "CV", "Llm": "LLM", "Mlops": "MLOps", "Genai": "GenAI"}
 
 # Role rules (config.ROLE_PATTERNS) are checked in order. A title that matches none of them is "other".
 # City rules, checked in order. The first pattern that matches decides.
@@ -23,7 +24,7 @@ COMPANY_SUFFIX = re.compile(r"\s*(?:\(egypt\)|llc|ltd\.?|inc\.?)\s*$", re.IGNORE
 SKILL_ALIASES = {name.lower(): canonical for canonical, variants in SKILL_VARIANTS.items()
                  for name in [canonical, *variants]}
 
-SKILL_SPLIT = re.compile(r"\s*[,;|/]\s*")
+SKILL_SPLIT = re.compile(r"\s*[,;|]\s*|\s+/\s+")
 SALARY_NUMBER = re.compile(r"(\d+(?:\.\d+)?)\s*([kK])?")
 
 

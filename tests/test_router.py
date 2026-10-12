@@ -43,7 +43,7 @@ UNDERSTOOD = [
     ("salary of a data scientist", "salary_for_role", {"role": "data_scientist"}),
     ("what is the average salary for data scientist who know python in cairo", "salary_for_role",
      {"role": "data_scientist", "city": "Cairo", "skill": "Python"}),
-    ("business analyst salary", "salary_for_role", {"role": "other"}),
+    ("business analyst salary", "salary_for_role", {"role": "business_analyst"}),
     ("مرتب data analyst في القاهرة",
      "salary_for_role", {"role": "data_analyst", "city": "Cairo"}),
     # rankings by pay
@@ -112,7 +112,7 @@ REFUSED = [
     "who is the president of Egypt",
     "what does a chef earn",
     "what does a software engineer earn",
-    "what does an AI engineer earn",
+    "what does a nurse earn",
     "jobs in London",
     "data analyst jobs in Dubai",
     "how is the job market",
@@ -289,6 +289,6 @@ def test_blind_sets_do_not_get_worse(router, name):
 
 def test_trend_and_advice_questions_are_refused(router):
     for q in ["did salaries go up", "is the market growing", "should I learn SQL",
-              "how many jobs in the last 6 months", "how many jobs need snowflake",
+              "how many jobs in the last 6 months", "how many jobs need cobol",
               "how many postings does vodafone have"]:
         assert router(q)["function"] is None, q
