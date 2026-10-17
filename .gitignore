@@ -8,3 +8,7 @@ data/*
 !data/.gitkeep
 !data/sample.duckdb
 _work/
+
+# RAG documents and index are never committed (copy the documents into rag/docs/ yourself)
+rag/docs/
+rag/index/
