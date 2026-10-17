@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Egypt Data Jobs: Reports</title>
+  <meta name="description" content="Search real reports about work and jobs in Egypt. A search-only demo that runs in your browser; nothing you type is sent anywhere.">
+  <meta name="theme-color" content="#6d4aff">
+  <!-- The page may load only its own files, the search library (jsDelivr) and the model files (Hugging Face), once. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://cdn.jsdelivr.net https://huggingface.co https://*.huggingface.co https://*.hf.co; worker-src blob:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%236d4aff'/%3E%3Cstop offset='1' stop-color='%23ff4d8d'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='9' fill='url(%23g)'/%3E%3Cpath d='M9 22V14M16 22V9M23 22v-6' stroke='white' stroke-width='3.4' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="module" src="js/rag.js"></script>
+</head>
+<body>
+  <a class="skip" href="#ask">Skip to the question box</a>
+
+  <header class="top">
+    <div class="wrap bar">
+      <a class="logo" href="./" aria-label="Egypt Data Jobs, home">
+        <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden="true"><rect width="32" height="32" rx="9" fill="url(#lg)"/><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6d4aff"/><stop offset="1" stop-color="#ff4d8d"/></linearGradient></defs><path d="M9 22V14M16 22V9M23 22v-6" stroke="#fff" stroke-width="3.4" stroke-linecap="round" fill="none"/></svg>
+        <span>Egypt Data Jobs</span>
+      </a>
+      <nav class="links" aria-label="Pages">
+        <a href="./">Jobs chat</a>
+        <a href="rag.html" aria-current="page">Reports</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero wrap" aria-labelledby="title">
+      <p class="eyebrow">Real reports · search only · runs in your browser</p>
+      <h1 id="title">What do the <span class="gradient">reports</span> say?</h1>
+      <p class="lede">Search four real reports about work in Egypt and the future of jobs. You get the three best matching passages with their page and a link, never a made-up answer.</p>
+
+      <form id="ask" class="search" role="search" autocomplete="off">
+        <label class="sr" for="q">Your question</label>
+        <input id="q" name="q" type="text" maxlength="300" placeholder="What degree do Egyptian job ads ask for?" enterkeyhint="search" autocapitalize="off" spellcheck="false">
+        <button class="btn" type="submit" disabled>Search</button>
+      </form>
+      <p id="model-status" class="hint" role="status" aria-live="polite">Loading...</p>
+      <div id="examples" class="chips"></div>
+      <div id="searchable"></div>
+    </section>
+
+    <section class="wrap" aria-label="Results">
+      <div id="status" class="sr" role="status" aria-live="polite"></div>
+      <div id="answer" tabindex="-1"></div>
+    </section>
+
+    <section class="wrap how" aria-labelledby="src-title">
+      <h2 id="src-title">The reports</h2>
+      <ul class="tip-list">
+        <li>The Future of Jobs Report 2025, World Economic Forum (January 2025), pages 1-111.</li>
+        <li>ECES Working Paper 241 on Egyptian online job postings (data Q4 2021 - Q4 2024).</li>
+        <li>Labour market transitions of young women and men in Egypt, ILO (2014, survey from 2012).</li>
+        <li>Egypt Jobs Issue Brief No. 4, World Bank (c. 2014), pages 1-2.</li>
+      </ul>
+      <p class="muted">Two of these are old (2012-2014 data), so their figures describe the labour market of that time.</p>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap">
+      <p><strong>Search-only demo. The full cited-answer version runs locally.</strong> Only the first words of each passage are shown here, never the whole report; open the link or the PDF page to read more.</p>
+      <p><strong>The jobs data on the other page is synthetic.</strong> These reports are real, and the two are never mixed. Your question is turned into numbers inside this page by the same small language model the Python version uses; nothing you type is sent to any server, and no AI service or API key is involved. <a href="https://github.com/saeedelgaml/egypt-data-jobs">Source code on GitHub</a>.</p>
+    </div>
+  </footer>
+</body>
+</html>

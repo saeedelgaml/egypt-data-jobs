@@ -118,11 +118,12 @@ def _log(log_path, question, function, params, ok):
         f.write(json.dumps(line, ensure_ascii=False, default=str) + "\n")
 
 
-def answer_question(con, question, chooser, log_path=None, fallback=None):
+def answer_question(con, question, chooser, log_path=None, fallback=None, rag=None):
     """Answer one typed question. Never raises. Returns text, function, params and ok.
 
-    fallback (optional) is tried only when no fixed answer fits: chatbot.local_ai.LocalAI. It returns a
-    result dict, or None (for example when Ollama is not running), and then the normal refusal is shown."""
+    rag and fallback (optional) are tried, in that order, only when no fixed answer fits: chatbot.rag_route.RagRoute
+    (answers from the reports) and chatbot.local_ai.LocalAI (SQL). Each returns a result dict, or None, and then
+    the next route or the normal refusal is used."""
     question = (question or "").strip() if isinstance(question, str) else ""
     if not question:
         return {"text": "Please type a question.", "function": None, "params": {}, "ok": False}
@@ -139,15 +140,21 @@ def answer_question(con, question, chooser, log_path=None, fallback=None):
     function, params = choice.get("function"), choice.get("params") or {}
     if function is None:
         hint = choice.get("hint")
-        if fallback is not None:
-            extra = fallback(question)
+        for route in (rag, fallback):  # the reports first (no model needed to decide), then the SQL fallback
+            extra = route(question) if route is not None else None
             if extra is not None:
-                _log(log_path, question, "ai_sql" if extra["ok"] else None, {}, extra["ok"])
+                _log(log_path, question, extra["function"] if extra["ok"] else None, {}, extra["ok"])
                 return {**extra, "data": extra.get("data"), "understood": None, "notes": [], "hint": hint}
         _log(log_path, question, None, {}, False)
         return {"text": (hint + "\n\n" if hint else "") + HELP,
                 "function": None, "params": {}, "ok": False, "data": None, "understood": None,
                 "notes": [], "hint": hint}
+
+    if choice.get("last_resort") and rag is not None:  # a guess ("newest postings"): the reports win if they cover it
+        extra = rag(question)
+        if extra is not None:
+            _log(log_path, question, extra["function"], {}, extra["ok"])
+            return {**extra, "data": extra.get("data"), "understood": None, "notes": [], "hint": None}
 
     answer = run(con, function, params)
     _log(log_path, question, function, params, answer["ok"])

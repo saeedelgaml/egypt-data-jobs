@@ -71,6 +71,39 @@ How it stays safe (all checked in code, not only in the prompt):
 
 Demo video: _(link coming soon)_
 
+## Answers from real reports (RAG, optional, local only)
+
+The jobs database is synthetic, but some questions ("How many jobs will be created and displaced by 2030?", "What degree do Egyptian job ads ask for?") are about the **real labour market**. For those, the Python chatbot can answer from five published documents. It is free, needs no key, runs only on your computer, and is not part of the website.
+
+How it works: fixed answers first, then retrieval over the documents (no model call needed to decide), then the local SQL fallback, then a refusal. If the best matching passage scores at least 0.32 (cosine similarity, chosen from 67 test questions with `python -m rag.calibrate`), a local Ollama model writes 3-5 sentences using only the numbered excerpts, with citations that the code writes itself from the index, such as `[WEF 2025, p.18]` (the model never supplies a year or page). The model is `qwen2.5:3b` (set `OLLAMA_MODEL` to change it; if it is not installed another installed model is used and its name is printed under the answer); it is kept loaded for 30 minutes and its answer is streamed. Every number in the answer must appear in the excerpts, otherwise two quotes are shown instead. Answers start with **"From the reports"** and end with a sources list (title, year, page); database answers keep their own labels.
+
+| Source | Publisher | Year / data period | Link |
+|---|---|---|---|
+| The Future of Jobs Report 2025 (pages 1-111) | World Economic Forum | January 2025 | https://www.weforum.org/publications/the-future-of-jobs-report-2025/ |
+| ECES Working Paper 241, Egyptian online job postings (pages 2-30) | Egyptian Center for Economic Studies | data Q4 2021 - Q4 2024 | no link recorded |
+| Labour market transitions of young women and men in Egypt | ILO | June 2014 (survey from 2012) | no link recorded |
+| Egypt Jobs Issue Brief No. 4 (pages 1-2) | World Bank | c. 2014 | https://www.albankaldawli.org/content/dam/Worldbank/Feature%20Story/mena/Egypt/Egypt-Doc/egy-jobs-issue-brief-4-ENG-ARA.pdf |
+| The Complete Data Science Resume Guide in 2025 | 365 Data Science | 17 January 2025 | https://365datascience.com/data-science-resume/ |
+
+**The documents are not in this repository** (they are listed in `rag/sources.json` and git-ignored, like the index). Download them yourself, save them in `rag/docs/` as `wef-fojr-2025.pdf`, `eces-wp241.pdf`, `ilo-swts-egypt.pdf`, `wb-egypt-brief4.pdf` and `365ds-resume-guide.txt` (the guide as plain text), then:
+
+```
+pip install -r requirements-extras.txt
+python -m rag.ingest                       # builds rag/index (~300-word chunks, all-MiniLM-L6-v2 at 512 tokens)
+python -m rag.calibrate                    # prints the best retrieval score of every test question
+ollama pull qwen2.5:3b                     # recommended; any installed model is used if it is missing
+python -m chatbot.chat "What degree do Egyptian job ads ask for?"     # --no-rag switches it off
+pytest tests/test_rag.py --runslow         # includes the tests that call a real model
+```
+
+Without the documents or the index, the RAG route is skipped and its tests skip. Set `OLLAMA_MODEL` to choose the model.
+
+Limits: two sources are old (the ILO survey is from 2012 and the World Bank brief is about 2014), so their figures describe the labour market of that time. The ECES paper covers online postings only. A small local model can misread an excerpt, so check the cited page. The jobs database stays synthetic and is never mixed with the reports: an answer is either "From the reports" or from the database.
+
+### Search-only Reports page on the website
+
+`site/rag.html` (linked as "Reports" in the site header) searches the four public reports in your browser, with no server and no key. `python -m rag.export_site` writes `site/rag/index.json` from the local index: for each passage only the source, year, link, PDF page, a snippet of the first ~40 words and the embedding (3 decimals) are exported, never the full text, and the resume guide is left out. The page loads transformers.js (pinned to `@xenova/transformers@2.17.2` on jsDelivr) and the same model (`Xenova/all-MiniLM-L6-v2`, mean pooling, normalised, 512 tokens), embeds your question in the browser (one-time model download of about 25 MB, then cached), and shows the three closest passages with title, year, page and link, or "The documents don't cover that." below its own threshold (0.33, calibrated in a real browser with `python -m rag.calibrate_browser`). It is a search-only demo: the cited-answer version needs a local model. The browser uses embeddings only (no keyword ranking), so it finds the expected passage in its top 3 for 24 of 35 test questions, fewer than the Python route.
+
 ## Keeping Python and the browser identical
 
 `make_router_golden.py` writes `tests/data/router_golden.json`: what the Python chatbot answers for 350+ questions. `node --test` replays every one in JavaScript, and a Python test fails if the file is stale. Change the router, answers or sample data, then run `python make_router_golden.py`.

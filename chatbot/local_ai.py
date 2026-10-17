@@ -19,7 +19,8 @@ from sqlglot import exp
 
 import config
 
-DEFAULT_MODEL = "qwen2.5-coder:3b"
+DEFAULT_MODEL = "qwen2.5:3b"
+KEEP_ALIVE = "30m"
 DEFAULT_URL = "http://localhost:11434"
 ROW_LIMIT = 20
 QUERY_TIMEOUT = 5.0  # seconds
@@ -105,20 +106,60 @@ class UnsafeQuery(ValueError):
     """The SQL did not pass our checks. The message is safe to send back to the model."""
 
 
-def ollama_chat(system, user, model=None, url=None):
-    """One call to a local Ollama server. Raises OllamaUnavailable on any problem."""
+def _base_url(url=None):
+    return (url or os.environ.get("OLLAMA_URL") or DEFAULT_URL).rstrip("/")
+
+
+def installed_models(url=None):
+    try:
+        with urllib.request.urlopen(_base_url(url) + "/api/tags", timeout=5) as response:
+            return [m["name"] for m in json.loads(response.read()).get("models", [])]
+    except (urllib.error.URLError, OSError, ValueError, KeyError, TimeoutError):
+        raise OllamaUnavailable("tags") from None
+
+
+def resolve_model(url=None):
+    """The model to use: OLLAMA_MODEL, default qwen2.5:3b. If that one is not installed, a model that is
+    (the caller can report the name, so a different model is never used silently)."""
+    wanted = os.environ.get("OLLAMA_MODEL") or DEFAULT_MODEL
+    names = installed_models(url)
+    if wanted in names or (":" not in wanted and any(n.split(":")[0] == wanted for n in names)):
+        return wanted
+    usable = [n for n in names if "embed" not in n]
+    if not usable:
+        raise OllamaUnavailable("no model installed")
+    return usable[0]
+
+
+def ollama_chat(system, user, model=None, url=None, on_token=None):
+    """One call to a local Ollama server; the answer is streamed and returned as one string (on_token, if
+    given, is called with every piece as it arrives). The model stays loaded for KEEP_ALIVE afterwards, so
+    the next question does not wait for it to load again. Raises OllamaUnavailable on any problem."""
     body = json.dumps({
-        "model": model or os.environ.get("OLLAMA_MODEL") or DEFAULT_MODEL, "stream": False,
+        "model": model or resolve_model(url), "stream": True, "keep_alive": KEEP_ALIVE,
         "options": {"temperature": 0, "num_predict": 400},
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
     }).encode()
-    base = (url or os.environ.get("OLLAMA_URL") or DEFAULT_URL).rstrip("/")
-    request = urllib.request.Request(base + "/api/chat", data=body, headers={"Content-Type": "application/json"})
+    request = urllib.request.Request(_base_url(url) + "/api/chat", data=body, headers={"Content-Type": "application/json"})
+    pieces = []
     try:
         with urllib.request.urlopen(request, timeout=MODEL_TIMEOUT) as response:
-            return json.loads(response.read())["message"]["content"]
+            for line in response:
+                if not line.strip():
+                    continue
+                part = json.loads(line)
+                if "error" in part:
+                    raise ValueError("model error")
+                piece = part.get("message", {}).get("content", "")
+                if piece:
+                    pieces.append(piece)
+                    if on_token:
+                        on_token(piece)
+                if part.get("done"):
+                    break
     except (urllib.error.URLError, OSError, ValueError, KeyError, TimeoutError) as problem:
         raise OllamaUnavailable(type(problem).__name__) from None
+    return "".join(pieces)
 
 
 def validate_sql(sql):
