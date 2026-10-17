@@ -21,7 +21,7 @@ DOCS = ROOT / "docs"
 INDEX = ROOT / "index"
 SOURCES = ROOT / "sources.json"
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
-MAX_SEQ_LENGTH = 512  # MiniLM defaults to 256 word pieces, which would cut a 300-word chunk short
+MAX_SEQ_LENGTH = 512  # see PROFILES: MiniLM defaults to 256 word pieces, which cuts a 300-word chunk short
 
 TARGET_WORDS = 300       # a chunk is closed once it has at least this many words (~250-350)
 MAX_WORDS = 350
@@ -172,8 +172,28 @@ def build():
     return chunks, counts, missing
 
 
-def main():
+# Chunking profiles: words per chunk (close at TARGET, never above MAX), overlap, and the embedding model's
+# maximum sequence length (None keeps the model's own default of 256 word pieces).
+PROFILES = {
+    "large": {"target": 300, "max": 350, "overlap": 40, "seq": 512},
+    "small": {"target": 170, "max": 200, "overlap": 25, "seq": None},
+}
+DEFAULT_PROFILE = "large"
+
+
+def apply_profile(name):
+    global TARGET_WORDS, MAX_WORDS, OVERLAP_WORDS, MAX_SEQ_LENGTH
+    profile = PROFILES[name]
+    TARGET_WORDS, MAX_WORDS, OVERLAP_WORDS, MAX_SEQ_LENGTH = (profile["target"], profile["max"],
+                                                              profile["overlap"], profile["seq"])
+
+
+def main(argv=None):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    args = sys.argv[1:] if argv is None else argv
+    profile = args[args.index("--profile") + 1] if "--profile" in args else DEFAULT_PROFILE
+    out = Path(args[args.index("--out") + 1]) if "--out" in args else INDEX
+    apply_profile(profile)
     chunks, counts, missing = build()
     for name in missing:
         print(f"skipped (not in rag/docs/): {name}")
@@ -182,14 +202,16 @@ def main():
         return 1
     from sentence_transformers import SentenceTransformer
     model = SentenceTransformer(MODEL_NAME)
-    model.max_seq_length = MAX_SEQ_LENGTH
+    if MAX_SEQ_LENGTH:
+        model.max_seq_length = MAX_SEQ_LENGTH
+    meta_seq = model.max_seq_length
     vectors = model.encode([c["text"] for c in chunks], batch_size=32, normalize_embeddings=True,
                            show_progress_bar=False).astype(np.float32)
-    INDEX.mkdir(parents=True, exist_ok=True)
-    (INDEX / "chunks.json").write_text(json.dumps(chunks, ensure_ascii=False, indent=1), encoding="utf-8")
-    np.save(INDEX / "embeddings.npy", vectors)
-    (INDEX / "meta.json").write_text(json.dumps({"model": MODEL_NAME, "max_seq_length": MAX_SEQ_LENGTH,
-                                                 "normalized": True, "chunks": len(chunks)}), encoding="utf-8")
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "chunks.json").write_text(json.dumps(chunks, ensure_ascii=False, indent=1), encoding="utf-8")
+    np.save(out / "embeddings.npy", vectors)
+    (out / "meta.json").write_text(json.dumps({"model": MODEL_NAME, "max_seq_length": meta_seq, "profile": profile,
+                                               "normalized": True, "chunks": len(chunks)}), encoding="utf-8")
     for source_id, n in counts.items():
         print(f"{source_id}: {n} chunks")
     print(f"total: {len(chunks)} chunks, embeddings {vectors.shape}")

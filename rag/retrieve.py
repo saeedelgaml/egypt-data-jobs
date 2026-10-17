@@ -14,6 +14,7 @@ over ALL chunks) is what the refusal threshold looks at, so keyword matches alon
 """
 import json
 import math
+import os
 import re
 import sys
 from collections import Counter
@@ -22,11 +23,14 @@ from pathlib import Path
 
 import numpy as np
 
-INDEX = Path(__file__).resolve().parent / "index"
+INDEX = Path(os.environ.get("RAG_INDEX") or Path(__file__).resolve().parent / "index")
 TOP_K = 4
-# Chosen from python -m rag.calibrate: the best score of the off-topic test questions is at most 0.300 and of
-# the in-scope ones at least 0.433, so the threshold is the middle of that gap (0.366, rounded to 0.37).
-THRESHOLD = 0.37
+# Chosen from python -m rag.calibrate on tests/rag_questions.json (45 in-scope questions and paraphrases, 12 off-topic,
+# 10 database-style). Worst in-scope best score 0.341, best off-topic score 0.300, so 0.32 sits in the middle of that
+# gap and never refuses an in-scope paraphrase. Database-style questions (0.37-0.52) cannot be separated from in-scope
+# ones by score; they are caught earlier by the fixed answers and the keyword block, or later when the model replies
+# "not covered" and the chatbot falls through to the SQL fallback.
+THRESHOLD = 0.32
 
 
 def index_available():
