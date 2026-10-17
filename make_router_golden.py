@@ -21,6 +21,9 @@ SAMPLE = ROOT / "data" / "sample.duckdb"
 OUT = ROOT / "tests" / "data" / "router_golden.json"
 
 EXTRA_QUESTIONS = [
+    "What's the weather in Cairo tomorrow?", "Do fresh graduates need experience?", "How long should a data science resume be?",
+    "data engineer cairo", "weather cairo", "ai engineers in giza", "data scientist jobs resume tips", "fresh graduates",
+    "whats been posted in the last 3 days in alex", "last 2 weeks ml engineer posts with pytorch, give me 5",
     "what are the most usefull skills for ai engineering", "most important skills for data engineering",
     "best skills for mlops engineering", "which skills are in demand for data science",
     "what skills are needed for business intelligence", "top skills for data analysis", "most useful skills for llm engineering",

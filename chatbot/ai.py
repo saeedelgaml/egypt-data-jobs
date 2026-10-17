@@ -150,6 +150,12 @@ def answer_question(con, question, chooser, log_path=None, fallback=None, rag=No
                 "function": None, "params": {}, "ok": False, "data": None, "understood": None,
                 "notes": [], "hint": hint}
 
+    if choice.get("last_resort") and rag is not None:  # a guess ("newest postings"): the reports win if they cover it
+        extra = rag(question)
+        if extra is not None:
+            _log(log_path, question, extra["function"], {}, extra["ok"])
+            return {**extra, "data": extra.get("data"), "understood": None, "notes": [], "hint": None}
+
     answer = run(con, function, params)
     _log(log_path, question, function, params, answer["ok"])
     if not answer["ok"]:
