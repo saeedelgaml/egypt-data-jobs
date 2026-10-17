@@ -102,6 +102,8 @@ DOMAIN_RE = _word(r"jobs?|postings?|posts?|roles?|positions?|vacanc(?:y|ies)|ope
                   r"wage|wages|skills?|compan(?:y|ies)|employers?|market|listings?")
 SENIORITY_RE = _word(r"seniority|experience level|by level|junior|jr|senior|sr|lead|principal|entry level|entry-level|intern|internship|"
                      r"fresh graduate|graduate|fresher|freshers|staff|head of|manager")
+JOB_INTENT_RE = _word(r"jobs?|postings?|posts?|posted|listings?|vacanc(?:y|ies)|hiring|openings?|new|newest|latest|recent|recently")
+BARE_PHRASE_WORDS = 4
 STRICT_NEW_RE = _word(r"new|newest|latest|recent|recently|fresh|freshest|just posted")
 VOLUME_RE = _word(r"jobs?|postings?|openings?|vacanc(?:y|ies)|positions?|hiring|listings?|"
                   r"opportunit(?:y|ies)|demand")
@@ -361,6 +363,7 @@ class RuleRouter:
             return refusal("Please ask about one role at a time.")
 
         multi_role = len(role_names) > 1
+        last_resort = False
         if amount is not None:
             if has["noun"] or has["company"] or has["others"] or has["most"] or has["city"]:
                 return refusal(AMOUNT_HINT)
@@ -394,6 +397,13 @@ class RuleRouter:
         elif has["count"] and days is None and not has["strict_new"]:
             choice = ("count_postings", {"role": role, "city": city, "skill": skill})
         elif has["new"] or days is not None or role or city or skill:
+            # The last resort. It answers only a question that is about jobs (job, posting, hiring, new, latest...)
+            # or a bare role/city phrase such as "data engineer cairo"; anything else ("what's the weather in
+            # Cairo tomorrow?") is not a jobs question and is refused, so the reports or the SQL fallback can try.
+            bare = len(base.split()) <= BARE_PHRASE_WORDS and all(w in ALLOWED for w in text.split())
+            if not (JOB_INTENT_RE.search(base) or bare):
+                return refusal()
+            last_resort = True
             params = {"role": role, "city": city, "skill": skill}
             if days is not None:
                 params["days"] = days
@@ -413,8 +423,11 @@ class RuleRouter:
         if multi_role and function == "top_paying":
             extra.append(MULTI_ROLE_NOTE)
         notes = self._notes(question, text, roles, function) + extra
-        return {"function": function, "params": params,
-                "understood": self._describe(function, params), "notes": notes}
+        result = {"function": function, "params": params,
+                  "understood": self._describe(function, params), "notes": notes}
+        if last_resort:
+            result["last_resort"] = True  # the reports are asked before this guess is shown
+        return result
 
     # ---- pieces ------------------------------------------------------------------
 
@@ -543,7 +556,7 @@ _EXPORTED_PATTERNS = {
     "TREND": TREND_RE, "ADVICE": ADVICE_RE, "MUTATE": MUTATE_RE, "CONTACT": CONTACT_RE,
     "INJECTION": INJECTION_RE, "FILTER_WORD": FILTER_WORD_RE, "STRONG_ROLE": STRONG_ROLE_RE,
     "ROLE_ASK": ROLE_ASK_RE, "ROLE_MOST": ROLE_MOST_RE, "TIME_NOTE": TIME_NOTE_RE, "AMOUNT": AMOUNT_RE, "TIME": TIME_RE,
-    "PERIOD": PERIOD_RE, "DAY_WORD": DAY_WORD_RE, "PLACE": PLACE_RE,
+    "JOB_INTENT": JOB_INTENT_RE, "PERIOD": PERIOD_RE, "DAY_WORD": DAY_WORD_RE, "PLACE": PLACE_RE,
 }
 
 _EXPORTED_TEXT = {
@@ -567,5 +580,5 @@ def export_config():
         "limit_patterns": [rx.pattern for rx in LIMIT_RES],
         "subject_patterns": [rx.pattern for rx in SUBJECT_RES],
         "group_nouns": {name: rx.pattern for name, rx in GROUP_NOUNS.items()},
-        "text": _EXPORTED_TEXT, "typo": {"min_length": TYPO_MIN_LENGTH, "cutoff": TYPO_CUTOFF},
+        "text": _EXPORTED_TEXT, "typo": {"min_length": TYPO_MIN_LENGTH, "cutoff": TYPO_CUTOFF}, "bare_phrase_words": BARE_PHRASE_WORDS,
     }

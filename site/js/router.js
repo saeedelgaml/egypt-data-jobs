@@ -254,7 +254,7 @@ export function createRouter(cfg, skills) {
       if (has.noun || has.company || has.others || has.most || has.city) return refusal(T.AMOUNT_HINT);
       if (has.new && !has.count) extra.push(T.AMOUNT_NOTE);
     }
-    let fn, params;
+    let fn, params, lastResort = false;
     if (amountValue !== null) {
       fn = "count_postings"; params = { role, city, skill, min_salary: amountValue };
     } else if (skill && skillNames.length === 1 && (has.noun || has.others) && !has.count && !has.salary) {
@@ -278,6 +278,11 @@ export function createRouter(cfg, skills) {
     } else if (has.count && daysValue === null && !has.strict_new) {
       fn = "count_postings"; params = { role, city, skill };
     } else if (has.new || daysValue !== null || role || city || skill) {
+      // The last resort: only for a question about jobs, or a bare role/city phrase (same rule as the Python router).
+      const bare = base.split(" ").filter(Boolean).length <= R.bare_phrase_words
+        && text.split(" ").filter(Boolean).every((w) => allowed.has(w));
+      if (!(rx.JOB_INTENT.test(base) || bare)) return refusal();
+      lastResort = true;
       fn = "new_postings"; params = { role, city, skill };
       if (daysValue !== null) params.days = daysValue;
       if (limitValue !== null) params.limit = limitValue;
@@ -292,6 +297,7 @@ export function createRouter(cfg, skills) {
     return {
       function: fn, params, understood: describe(fn, params, amountIsFloat),
       notes: [...notes(question, text, roles, fn), ...extra],
+      ...(lastResort ? { last_resort: true } : {}),
     };
   }
 
