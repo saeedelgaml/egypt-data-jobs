@@ -242,3 +242,52 @@ def test_citations_are_written_by_code_from_the_index_not_by_the_model():
 def test_an_answer_without_any_citation_is_attributed_to_the_best_excerpt():
     result = rag_answer.answer("q", [HIT], ask_model=fake("89.6% of postings are in Cairo and Giza."))
     assert result["text"].endswith("[ECES 2021-24, p.18]")
+
+
+# ---- the cited excerpt is the one that holds the numbers; the supporting sentence is printed -------------
+
+WEF18 = {"source": "wef-fojr-2025", "title": "The Future of Jobs Report 2025", "year": "2025 (January)", "page": 18,
+         "page_end": 18, "score": 0.69, "best_score": 0.69,
+         "text": ("By 2030, new job creation and job displacement due to macrotrends will represent a combined total of 22% "
+                  "of today's total jobs. Macrotrend-driven creation of new jobs is estimated at 170 million jobs, equivalent "
+                  "to 14% of today's total employment. This growth is offset by the displacement of 92 million current jobs, "
+                  "or 8% of total employment, resulting in a net growth of 78 million jobs (7% of today's total employment).")}
+WEF24 = {**WEF18, "page": 24, "page_end": 24, "score": 0.68,
+         "text": "Technology adoption and economic uncertainty are the main drivers of change in the labour market."}
+
+
+def test_the_170_92_78_million_case_cites_page_18_and_prints_the_evidence():
+    result = rag_answer.answer("jobs created and displaced by 2030?", [WEF24, WEF18],
+                               ask_model=fake("By 2030, 78 million jobs are expected to be created and 92 million displaced [1]."))
+    assert result["mode"] == "generated"
+    assert "[WEF 2025, p.18]" in result["text"] and "p.24" not in result["text"]  # the model said [1]; the numbers are in [2]
+    shown = rag_answer.format_answer(result)
+    assert "Evidence: " in shown and "92 million current jobs" in shown and "78 million jobs" in shown
+    assert [s["page"] for s in result["sources"]] == [18]
+
+
+ECES18 = {**HIT, "page": 18, "page_end": 18, "score": 0.50,
+          "text": "A bachelor's degree is the persistent, near-universal prerequisite, required in 92% to 99% of postings "
+                  "across the observed quarters. Demand for postgraduate qualifications was minimal."}
+ECES30 = {**HIT, "page": 30, "page_end": 30, "score": 0.55,
+          "text": "Bibliography Autor, D. H., F. Levy, and R. J. Murnane. 2003. The Skill Content of Recent Technological Change."}
+
+
+def test_the_degree_case_cites_page_18_not_the_bibliography_page_30():
+    result = rag_answer.answer("what degree do job ads ask for?", [ECES30, ECES18],
+                               ask_model=fake("Egyptian job ads ask for a bachelor's degree, required in 92% to 99% of postings [1]."))
+    assert "[ECES 2021-24, p.18]." in result["text"] and "p.30" not in result["text"]
+    shown = rag_answer.format_answer(result)
+    assert "Evidence: \u201cA bachelor's degree is the persistent, near-universal prerequisite, required in 92% to 99%" in shown
+    assert "[ECES 2021-24, p.18]" in shown.split("Evidence: ")[1].split("\n")[0]
+
+
+def test_a_sentence_without_numbers_goes_to_the_excerpt_that_shares_its_words():
+    result = rag_answer.answer("q", [ECES30, ECES18],
+                               ask_model=fake("A bachelor's degree is the near-universal prerequisite for postings [1]."))
+    assert "[ECES 2021-24, p.18]" in result["text"]
+
+
+def test_a_sentence_nothing_supports_keeps_the_models_pick():
+    result = rag_answer.answer("q", [ECES30, ECES18], ask_model=fake("Good luck [2]."))
+    assert "[ECES 2021-24, p.18]" in result["text"] and "92% to 99%" in rag_answer.format_answer(result)
