@@ -11,6 +11,9 @@ in a file named .env (see .env.example). It may cost money:
 Local AI fallback (free, needs Ollama running with qwen2.5-coder:3b; skipped when Ollama is down):
 a question that no fixed answer fits may get one checked, read-only SQL query written by the local
 model. Turn it off with --no-local-ai.
+
+Reports (RAG): a question about the five indexed reports (see README, rag/) is answered from them,
+labelled "From the reports". Turn it off with --no-rag.
 """
 import sys
 
@@ -20,11 +23,12 @@ from chatbot.ai import answer_question
 from db.schema import DEFAULT_DB_PATH
 
 
-def main(argv=None, db_path=DEFAULT_DB_PATH, chooser=None, log_path=None, fallback="default"):
+def main(argv=None, db_path=DEFAULT_DB_PATH, chooser=None, log_path=None, fallback="default", rag="default"):
     args = list(sys.argv[1:] if argv is None else argv)
     use_ai = "--ai" in args
     no_local = "--no-local-ai" in args
-    args = [a for a in args if a not in ("--ai", "--no-local-ai")]
+    no_rag = "--no-rag" in args
+    args = [a for a in args if a not in ("--ai", "--no-local-ai", "--no-rag")]
     if not db_path.exists():
         print(f"No database at {db_path}. Run python run_pipeline.py first.")
         return 1
@@ -37,6 +41,11 @@ def main(argv=None, db_path=DEFAULT_DB_PATH, chooser=None, log_path=None, fallba
             if not no_local:
                 from chatbot.local_ai import LocalAI
                 fallback = LocalAI(con)
+        if rag == "default":
+            rag = None
+            if not no_rag:
+                from chatbot.rag_route import RagRoute
+                rag = RagRoute()
         if chooser is None:
             if use_ai:
                 from dotenv import load_dotenv
@@ -51,7 +60,7 @@ def main(argv=None, db_path=DEFAULT_DB_PATH, chooser=None, log_path=None, fallba
                 from chatbot.router import RuleRouter
                 chooser = RuleRouter(con)
         if args:
-            print(answer_question(con, " ".join(args), chooser, log_path, fallback)["text"])
+            print(answer_question(con, " ".join(args), chooser, log_path, fallback, rag)["text"])
         else:
             while True:
                 try:
@@ -60,7 +69,7 @@ def main(argv=None, db_path=DEFAULT_DB_PATH, chooser=None, log_path=None, fallba
                     break
                 if not question:
                     break
-                print(answer_question(con, question, chooser, log_path, fallback)["text"] + "\n")
+                print(answer_question(con, question, chooser, log_path, fallback, rag)["text"] + "\n")
     finally:
         con.close()
     return 0

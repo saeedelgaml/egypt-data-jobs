@@ -24,7 +24,9 @@ import numpy as np
 
 INDEX = Path(__file__).resolve().parent / "index"
 TOP_K = 4
-THRESHOLD = 0.0  # set from the calibration printed by tests/test_rag.py (step 2 prints, step 4 sets)
+# Chosen from python -m rag.calibrate: the best score of the off-topic test questions is at most 0.300 and of
+# the in-scope ones at least 0.433, so the threshold is the middle of that gap (0.366, rounded to 0.37).
+THRESHOLD = 0.37
 
 
 def index_available():
