@@ -71,6 +71,35 @@ How it stays safe (all checked in code, not only in the prompt):
 
 Demo video: _(link coming soon)_
 
+## Answers from real reports (RAG, optional, local only)
+
+The jobs database is synthetic, but some questions ("How many jobs will be created and displaced by 2030?", "What degree do Egyptian job ads ask for?") are about the **real labour market**. For those, the Python chatbot can answer from five published documents. It is free, needs no key, runs only on your computer, and is not part of the website.
+
+How it works: fixed answers first, then retrieval over the documents (no model call needed to decide), then the local SQL fallback, then a refusal. If the best matching passage scores at least 0.37 (cosine similarity), a local Ollama model writes 3-5 sentences using only the numbered excerpts, with citations. Every number in the answer must appear in the excerpts, otherwise two quotes are shown instead. Answers start with **"From the reports"** and end with a sources list (title, year, page); database answers keep their own labels.
+
+| Source | Publisher | Year / data period | Link |
+|---|---|---|---|
+| The Future of Jobs Report 2025 (pages 1-111) | World Economic Forum | January 2025 | https://www.weforum.org/publications/the-future-of-jobs-report-2025/ |
+| ECES Working Paper 241, Egyptian online job postings (pages 2-30) | Egyptian Center for Economic Studies | data Q4 2021 - Q4 2024 | no link recorded |
+| Labour market transitions of young women and men in Egypt | ILO | June 2014 (survey from 2012) | no link recorded |
+| Egypt Jobs Issue Brief No. 4 (pages 1-2) | World Bank | c. 2014 | https://www.albankaldawli.org/content/dam/Worldbank/Feature%20Story/mena/Egypt/Egypt-Doc/egy-jobs-issue-brief-4-ENG-ARA.pdf |
+| The Complete Data Science Resume Guide in 2025 | 365 Data Science | 17 January 2025 | https://365datascience.com/data-science-resume/ |
+
+**The documents are not in this repository** (they are listed in `rag/sources.json` and git-ignored, like the index). Download them yourself, save them in `rag/docs/` as `wef-fojr-2025.pdf`, `eces-wp241.pdf`, `ilo-swts-egypt.pdf`, `wb-egypt-brief4.pdf` and `365ds-resume-guide.txt` (the guide as plain text), then:
+
+```
+pip install -r requirements-extras.txt
+python -m rag.ingest                       # builds rag/index (chunks + embeddings, all-MiniLM-L6-v2)
+python -m rag.calibrate                    # prints the best retrieval score of every test question
+ollama pull qwen2.5:3b                     # recommended; any installed model is used if it is missing
+python -m chatbot.chat "What degree do Egyptian job ads ask for?"     # --no-rag switches it off
+pytest tests/test_rag.py --runslow         # includes the tests that call a real model
+```
+
+Without the documents or the index, the RAG route is skipped and its tests skip. Set `OLLAMA_MODEL` to choose the model.
+
+Limits: two sources are old (the ILO survey is from 2012 and the World Bank brief is about 2014), so their figures describe the labour market of that time. The ECES paper covers online postings only. A small local model can misread an excerpt, so check the cited page. The jobs database stays synthetic and is never mixed with the reports: an answer is either "From the reports" or from the database.
+
 ## Keeping Python and the browser identical
 
 `make_router_golden.py` writes `tests/data/router_golden.json`: what the Python chatbot answers for 350+ questions. `node --test` replays every one in JavaScript, and a Python test fails if the file is stale. Change the router, answers or sample data, then run `python make_router_golden.py`.
