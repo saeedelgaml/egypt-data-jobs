@@ -1,7 +1,7 @@
 // The "Reports" page: search-only. The question is embedded in the browser with the same model as the
 // Python index (all-MiniLM-L6-v2, mean pooling, normalised vectors) and compared with the exported vectors.
 // Nothing you type is sent anywhere; the only downloads are the library and the model (once, then cached).
-import { NOT_COVERED, pagesText, search, THRESHOLD } from "./ragsearch.js";
+import { isResumeQuestion, NOT_COVERED, pagesText, RESUME_NOTICE, search, THRESHOLD } from "./ragsearch.js";
 import { h } from "./render.js";
 
 const LIBRARY = "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js";
@@ -75,9 +75,24 @@ function show(result, question) {
   $("status").textContent = `${result.hits.length} passages found for: ${question}`;
 }
 
+function showResumeNotice() {
+  $("answer").replaceChildren(h("article", { class: "card refuse", "data-notice": "resume" }, h("h2", {}, RESUME_NOTICE),
+    h("p", { class: "muted" }, "The web demo searches the four reports listed above.")));
+  $("status").textContent = RESUME_NOTICE;
+}
+
+function showSources() {
+  const seen = new Map();
+  for (const c of index.chunks) if (!seen.has(c.source)) seen.set(c.source, c);
+  $("searchable").replaceChildren(h("p", { class: "group-label" }, "Searchable reports"),
+    h("ul", { class: "tip-list", id: "sources-list" }, [...seen.values()].map((c) => h("li", {}, c.title, ` (${c.year})`))));
+}
+
 export async function ask(question) {
   $("q").value = question;
-  if (!question.trim() || !extractor) return null;
+  if (!question.trim()) return null;
+  if (isResumeQuestion(question)) { showResumeNotice(); return null; }
+  if (!extractor) return null;
   const result = search(await embed(question), index.chunks, THRESHOLD);
   show(result, question);
   return result;
@@ -89,6 +104,7 @@ async function start() {
     if (!response.ok) throw new Error(`The index answered with status ${response.status}.`);
     index = await response.json();
     $("examples").replaceChildren(...EXAMPLES.map((q) => h("button", { class: "chip", type: "button", onclick: () => ask(q) }, q)));
+    showSources();
     $("ask").addEventListener("submit", (event) => { event.preventDefault(); ask($("q").value); });
     await loadModel();
     $("ask").querySelector("button").disabled = false;

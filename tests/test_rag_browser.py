@@ -51,3 +51,37 @@ def test_the_form_shows_three_passages_with_a_link_and_the_not_covered_message()
             browser.close()
     finally:
         server.shutdown()
+
+
+@pytest.mark.slow
+def test_the_page_lists_the_four_reports_and_explains_that_resume_advice_is_local_only():
+    if not (cb.SITE / "rag" / "index.json").exists():
+        pytest.skip("needs site/rag/index.json")
+    from playwright.sync_api import sync_playwright
+    server = cb.serve()
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page()
+            page.goto(f"http://127.0.0.1:{server.server_address[1]}/rag.html")
+            page.wait_for_selector("#sources-list li", state="attached")
+            items = page.locator("#sources-list li").all_inner_texts()
+            assert len(items) == 4 and all("(" in item and ")" in item for item in items)
+            assert any("The Future of Jobs Report 2025 (2025 (January))" == item for item in items)
+            assert not any("Resume" in item for item in items)
+            page.wait_for_selector("body[data-rag-ready=true]", state="attached", timeout=600_000)
+            expected = "Resume advice isn't in the web demo; the full local version covers it."
+            for question in ["How long should a data science resume be?", "do big companies use ATS?",
+                             "any LinkedIn tips", "cover letter or CV first"]:
+                page.fill("#q", question)
+                page.click("button[type=submit]")
+                page.wait_for_selector("[data-notice=resume]")
+                assert expected in page.inner_text("#answer")
+                assert page.locator(".passage").count() == 0, question
+            page.fill("#q", "What degree do Egyptian job ads ask for?")
+            page.click("button[type=submit]")
+            page.wait_for_selector(".passage")
+            assert page.locator("[data-notice=resume]").count() == 0
+            browser.close()
+    finally:
+        server.shutdown()

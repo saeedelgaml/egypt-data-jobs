@@ -49,3 +49,13 @@ test("the page pins the library version, forbids eval and only shows snippets", 
   assert.doesNotMatch(page, /(?<!wasm-)unsafe-eval/); // only WebAssembly may compile, never strings
   assert.match(page, /Search-only demo\. The full cited-answer version runs locally\./);
 });
+
+test("resume, CV, cover letter, ATS and LinkedIn questions are recognised", async () => {
+  const { isResumeQuestion, RESUME_NOTICE } = await import("../site/js/ragsearch.js");
+  for (const q of ["How long should a data science resume be?", "résumé length", "what about my CV", "cover letter tips",
+                   "Do big companies use ATS?", "LinkedIn headline ideas"]) assert.equal(isResumeQuestion(q), true, q);
+  for (const q of ["What degree do Egyptian job ads ask for?", "statistics for data jobs", "computer vision engineer", "stats"]) {
+    assert.equal(isResumeQuestion(q), false, q);
+  }
+  assert.equal(RESUME_NOTICE, "Resume advice isn't in the web demo; the full local version covers it.");
+});

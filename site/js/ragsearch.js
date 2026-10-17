@@ -8,6 +8,15 @@ export const THRESHOLD = 0.33;
 export const TOP_K = 3;
 export const NOT_COVERED = "The documents don't cover that.";
 
+export const RESUME_NOTICE = "Resume advice isn't in the web demo; the full local version covers it.";
+const RESUME_WORDS = /(?<![a-z])(resumes?|r\u00e9sum\u00e9s?|resum\u00e9s?|cv|cvs|cover letters?|ats|linkedin)(?![a-z])/i;
+
+/** True when the question is about resumes, CVs, cover letters, ATS or LinkedIn: the 365 Data Science guide is
+ *  not part of the web index, so the page says so instead of showing unrelated passages. */
+export function isResumeQuestion(question) {
+  return RESUME_WORDS.test(question);
+}
+
 export function dot(a, b) {
   let sum = 0;
   for (let i = 0; i < a.length; i++) sum += a[i] * b[i];
