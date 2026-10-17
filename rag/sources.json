@@ -6,7 +6,8 @@
     "year": "2025 (January)",
     "url": "https://www.weforum.org/publications/the-future-of-jobs-report-2025/",
     "filename": "wef-fojr-2025.pdf",
-    "pages": "1-111"
+    "pages": "1-111",
+    "short": "WEF 2025"
   },
   {
     "id": "eces-wp241",
@@ -15,7 +16,8 @@
     "year": "data Q4 2021 - Q4 2024",
     "url": "",
     "filename": "eces-wp241.pdf",
-    "pages": "2-30"
+    "pages": "2-30",
+    "short": "ECES 2021-24"
   },
   {
     "id": "ilo-swts-egypt",
@@ -24,7 +26,8 @@
     "year": "2014 (survey from 2012)",
     "url": "",
     "filename": "ilo-swts-egypt.pdf",
-    "pages": "all"
+    "pages": "all",
+    "short": "ILO 2014"
   },
   {
     "id": "wb-egypt-brief4",
@@ -33,7 +36,8 @@
     "year": "c. 2014",
     "url": "https://www.albankaldawli.org/content/dam/Worldbank/Feature%20Story/mena/Egypt/Egypt-Doc/egy-jobs-issue-brief-4-ENG-ARA.pdf",
     "filename": "wb-egypt-brief4.pdf",
-    "pages": "1-2"
+    "pages": "1-2",
+    "short": "World Bank c.2014"
   },
   {
     "id": "365ds-resume-guide",
@@ -42,6 +46,7 @@
     "year": "2025 (17 January)",
     "url": "https://365datascience.com/data-science-resume/",
     "filename": "365ds-resume-guide.txt",
-    "pages": "all"
+    "pages": "all",
+    "short": "365 Data Science 2025"
   }
 ]

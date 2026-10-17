@@ -110,7 +110,8 @@ def test_a_grounded_answer_is_kept_and_only_cited_sources_are_listed():
     assert result["mode"] == "generated" and [s["n"] for s in result["sources"]] == [1]
     text = rag_answer.format_answer(result)
     assert text.startswith("From the reports") and "Sources:" in text
-    assert "ECES Working Paper 241" in text and "p. 18" in text
+    assert "[ECES 2021-24, p.18]" in text and "[1]" not in text.split("Sources:")[0]
+    assert "ECES Working Paper 241" in text
 
 
 def test_an_invented_number_replaces_the_answer_with_quotes():
@@ -195,3 +196,14 @@ def test_real_model_says_the_documents_do_not_cover_it(real_ollama):
     hits = retrieve.search("How many jobs will be created and displaced by 2030?")
     result = rag_answer.answer("What is the best pizza topping?", hits)
     assert result["mode"] in ("not_covered", "quotes")
+
+
+def test_citations_are_written_by_code_from_the_index_not_by_the_model():
+    result = rag_answer.answer("q", [HIT, HIT2], ask_model=fake("A [1]. B [2]. C [1, 2]. D [9]."))
+    assert result["text"] == ("A [ECES 2021-24, p.18]. B [WEF 2025, pp.5-6]. "
+                              "C [ECES 2021-24, p.18; WEF 2025, pp.5-6]. D.")
+
+
+def test_an_answer_without_any_citation_is_attributed_to_the_best_excerpt():
+    result = rag_answer.answer("q", [HIT], ask_model=fake("89.6% of postings are in Cairo and Giza."))
+    assert result["text"].endswith("[ECES 2021-24, p.18]")

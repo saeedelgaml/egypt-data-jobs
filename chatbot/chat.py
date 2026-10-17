@@ -23,7 +23,39 @@ from chatbot.ai import answer_question
 from db.schema import DEFAULT_DB_PATH
 
 
+class Progress:
+    """Shows that the local model is writing: one dot per few streamed pieces, on stderr."""
+
+    def __init__(self):
+        self.count, self.started = 0, False
+
+    def __call__(self, piece):
+        if not self.started:
+            sys.stderr.write("Writing the answer from the reports ")
+            self.started = True
+        self.count += 1
+        if self.count % 12 == 0:
+            sys.stderr.write(".")
+        sys.stderr.flush()
+
+    def finish(self):
+        if self.started:
+            sys.stderr.write("\n")
+            sys.stderr.flush()
+            self.started = False
+
+
+def use_utf8():
+    """Windows consoles default to a legacy code page, which turned apostrophes into a question mark."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError, OSError):
+            pass
+
+
 def main(argv=None, db_path=DEFAULT_DB_PATH, chooser=None, log_path=None, fallback="default", rag="default"):
+    use_utf8()
     args = list(sys.argv[1:] if argv is None else argv)
     use_ai = "--ai" in args
     no_local = "--no-local-ai" in args
@@ -41,11 +73,13 @@ def main(argv=None, db_path=DEFAULT_DB_PATH, chooser=None, log_path=None, fallba
             if not no_local:
                 from chatbot.local_ai import LocalAI
                 fallback = LocalAI(con)
+        progress = None
         if rag == "default":
             rag = None
             if not no_rag:
                 from chatbot.rag_route import RagRoute
-                rag = RagRoute()
+                progress = Progress()
+                rag = RagRoute(on_token=progress)
         if chooser is None:
             if use_ai:
                 from dotenv import load_dotenv
@@ -60,7 +94,9 @@ def main(argv=None, db_path=DEFAULT_DB_PATH, chooser=None, log_path=None, fallba
                 from chatbot.router import RuleRouter
                 chooser = RuleRouter(con)
         if args:
-            print(answer_question(con, " ".join(args), chooser, log_path, fallback, rag)["text"])
+            result = answer_question(con, " ".join(args), chooser, log_path, fallback, rag)
+            progress and progress.finish()
+            print(result["text"])
         else:
             while True:
                 try:

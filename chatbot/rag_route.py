@@ -15,8 +15,9 @@ from rag import retrieve
 class RagRoute:
     """Callable like LocalAI: RagRoute()(question) -> a result dict, or None to try the next route."""
 
-    def __init__(self, ask_model=None, search=None, threshold=None):
+    def __init__(self, ask_model=None, search=None, threshold=None, on_token=None):
         self.ask_model = ask_model
+        self.on_token = on_token
         self.search = search or retrieve.search
         self.threshold = retrieve.THRESHOLD if threshold is None else threshold
         self.enabled = search is not None or retrieve.index_available()
@@ -30,8 +31,8 @@ class RagRoute:
             return None
         if not hits or hits[0]["best_score"] < self.threshold:
             return None
-        result = rag_answer.answer(question, hits, ask_model=self.ask_model)
+        result = rag_answer.answer(question, hits, ask_model=self.ask_model, on_token=self.on_token)
         if result["mode"] in ("not_covered", "quotes_offline"):  # no model, or the reports do not cover it
             return None
         return {"ok": True, "text": rag_answer.format_answer(result), "function": "rag", "params": {},
-                "data": {"mode": result["mode"], "sources": result["sources"], "best_score": hits[0]["best_score"]}}
+                "data": {"mode": result["mode"], "model": result.get("model"), "sources": result["sources"], "best_score": hits[0]["best_score"]}}
