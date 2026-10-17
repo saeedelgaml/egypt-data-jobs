@@ -11,6 +11,7 @@ import re
 from pathlib import Path
 
 from chatbot.local_ai import OllamaUnavailable, ollama_chat, resolve_model
+from rag import support
 
 LABEL = "From the reports"
 NOT_COVERED = "The documents I have don't cover that."
@@ -138,16 +139,17 @@ def answer(question, hits, ask_model=None, urls=None, on_token=None):
         text = ("(I could not verify the numbers in a written answer, so here are quotes from the best matching "
                 "reports.)\n" + quotes_text(hits, question))
         return {"text": text, "mode": "quotes", "sources": source_list(hits[:2], urls), "model": model}
-    cited = {int(n) for n in re.findall(r"\[(\d+)\]", reply)} & set(range(1, len(hits) + 1))
-    if not cited:  # the model forgot to cite: attribute the answer to the best excerpt
-        reply += " [1]"
-    return {"text": replace_citations(reply, hits), "mode": "generated",
-            "sources": source_list(hits, urls, cited or {1}), "model": model}
+    text, evidence = support.attribute(reply, hits, citation_label)
+    used = {i + 1 for i, _ in evidence}
+    return {"text": text, "mode": "generated", "sources": source_list(hits, urls, used), "model": model,
+            "evidence": [{"label": citation_label(hits[i]), "text": sentence} for i, sentence in evidence]}
 
 
 def format_answer(result):
     """The text shown to a person: label, answer, then the sources."""
     parts = [LABEL, result["text"]]
+    for item in result.get("evidence", []):
+        parts.append("Evidence: " + chr(8220) + item["text"] + chr(8221) + " [" + item["label"] + "]")
     if result["sources"]:
         lines = []
         for s in result["sources"]:
