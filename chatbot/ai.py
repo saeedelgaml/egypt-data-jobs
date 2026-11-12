@@ -12,6 +12,7 @@ and no job text are ever sent to the AI.
 """
 import json
 import os
+import re
 from datetime import datetime
 
 from config import CITIES, MAX_QUESTION_CHARS, SEED_ROLES
@@ -109,6 +110,48 @@ class AnthropicChooser:
         return {"function": None, "params": {}}
 
 
+# A question that names a report is about the reports, whatever else it says.
+REPORT_RE = re.compile(
+    r"\b(reports?|surveys?|stud(?:y|ies)|papers?|sources?|according to|eces|wef|ilo|world bank|"
+    r"world economic forum|future of jobs)\b", re.IGNORECASE)
+YIELD_UNUSED_WORDS = 2
+
+
+def names_a_report(question):
+    return bool(REPORT_RE.search(question))
+
+
+def reports_first(chooser, question, choice):
+    """True when the reports should be asked BEFORE the fixed answer the router picked.
+
+    Three cases: the pick is only the 'newest postings' guess; the question names a report, survey or
+    study; or the rules left two or more words unused and no role, skill or city was named, which means
+    the fixed answer ignored most of the question. If the reports do not cover it, the fixed answer stands."""
+    if choice.get("last_resort") or names_a_report(question):
+        return True
+    unused_words = getattr(chooser, "unused_words", None)  # only the rule router has it
+    if unused_words is None:
+        return False
+    words, named = unused_words(question)
+    return len(words) >= YIELD_UNUSED_WORDS and not named
+
+
+NOT_IN_REPORTS = ("The reports I have don't cover that, and the job postings in my data are synthetic, "
+                  "so I will not answer a question about a report from them.")
+
+
+def _only_the_reports(rag, question):
+    """A question that names a report ("How many postings did ECES collect in 2025?") may only be answered
+    from the reports. When they do not cover it, the database must not answer with its own numbers."""
+    return rag is not None and getattr(rag, "enabled", True) and names_a_report(question)
+
+
+def _not_in_reports(log_path, question):
+    _log(log_path, question, None, {}, False)
+    return {"text": NOT_IN_REPORTS + "\n\n" + HELP, "function": None, "params": {}, "ok": False, "data": None,
+            "understood": None, "notes": [], "hint": NOT_IN_REPORTS}
+
+
 def _log(log_path, question, function, params, ok):
     if log_path is None:
         return
@@ -145,16 +188,20 @@ def answer_question(con, question, chooser, log_path=None, fallback=None, rag=No
             if extra is not None:
                 _log(log_path, question, extra["function"] if extra["ok"] else None, {}, extra["ok"])
                 return {**extra, "data": extra.get("data"), "understood": None, "notes": [], "hint": hint}
+            if route is rag and _only_the_reports(rag, question):
+                return _not_in_reports(log_path, question)
         _log(log_path, question, None, {}, False)
         return {"text": (hint + "\n\n" if hint else "") + HELP,
                 "function": None, "params": {}, "ok": False, "data": None, "understood": None,
                 "notes": [], "hint": hint}
 
-    if choice.get("last_resort") and rag is not None:  # a guess ("newest postings"): the reports win if they cover it
+    if rag is not None and reports_first(chooser, question, choice):  # the reports win if they cover it
         extra = rag(question)
         if extra is not None:
             _log(log_path, question, extra["function"], {}, extra["ok"])
             return {**extra, "data": extra.get("data"), "understood": None, "notes": [], "hint": None}
+        if _only_the_reports(rag, question):
+            return _not_in_reports(log_path, question)
 
     answer = run(con, function, params)
     _log(log_path, question, function, params, answer["ok"])

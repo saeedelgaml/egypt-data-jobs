@@ -65,3 +65,39 @@ def test_when_the_reports_cover_a_guess_they_win_and_otherwise_the_guess_stands(
     assert win["function"] == "rag"
     stays = answer_question(con, question, router, rag=nothing)
     assert stays["function"] == "new_postings"
+
+
+# ---- a fixed answer yields to the reports, and a question that names a report is never answered by the database ----
+
+@pytest.mark.parametrize("question", [
+    "what % of employers say skill gaps are the biggest barrier to transforming their business",
+    "How many quarters of data does the ECES study cover?",
+    "How much did Egyptian freelancers earn compared to Indian freelancers?"])
+def test_a_fixed_answer_that_ignored_most_of_the_question_lets_the_reports_answer(con, question):
+    router = RuleRouter(con)
+    assert router(question)["function"] is not None, "a database rule matches a word of this question"
+    assert answer_question(con, question, router, rag=covered())["function"] == "rag"
+    assert answer_question(con, question, router, rag=None)["function"] is not None  # no reports: as before
+
+
+@pytest.mark.parametrize("question", ["What is the average salary of a junior data analyst in Egypt?",
+                                      "which skills matter for genai", "who is hiring data engineers"])
+def test_a_real_database_question_never_asks_the_reports(con, question):
+    def must_not_be_called(question):
+        raise AssertionError("the reports were asked")
+    assert answer_question(con, question, RuleRouter(con), rag=must_not_be_called)["ok"]
+
+
+def test_a_question_that_names_a_report_is_refused_when_the_reports_do_not_cover_it(con):
+    class NotCovered:
+        enabled = True
+
+        def __call__(self, question):
+            return None
+    def sql_must_not_be_called(question):
+        raise AssertionError("the SQL fallback was asked")
+    for question in ("How many job postings did ECES collect in 2025?",        # a database rule matches
+                     "What does the ILO report say about Morocco?"):           # no rule matches
+        result = answer_question(con, question, RuleRouter(con), rag=NotCovered(), fallback=sql_must_not_be_called)
+        assert result["function"] is None and result["ok"] is False
+        assert "101 postings" not in result["text"] and "cover" in result["text"]
