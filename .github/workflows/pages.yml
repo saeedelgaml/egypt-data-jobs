@@ -32,9 +32,14 @@ jobs:
       - name: Browser chatbot tests (must answer exactly like Python)
         run: node --test
 
+  eval:
+    # CI regression gate: router + search checks on the golden set (no Ollama), compared with a CI-only
+    # baseline. Defined in https://github.com/saeedelgaml/llm-regression-detection
+    uses: saeedelgaml/llm-regression-detection/.github/workflows/eval.yml@main
+
   deploy:
-    # Only the main branch is published, and only when every test passed.
-    needs: test
+    # Only the main branch is published, and only when every test and the regression gate passed.
+    needs: [test, eval]
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
