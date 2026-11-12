@@ -55,6 +55,11 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - name: Add the evaluation report at /eval/ (built by the eval job only when the gate passed)
+        uses: actions/download-artifact@v4
+        with:
+          name: eval-report
+          path: site/eval
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
