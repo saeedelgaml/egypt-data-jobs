@@ -80,8 +80,8 @@ How it works: fixed answers first, then retrieval over the documents (no model c
 | Source | Publisher | Year / data period | Link |
 |---|---|---|---|
 | The Future of Jobs Report 2025 (pages 1-111) | World Economic Forum | January 2025 | https://www.weforum.org/publications/the-future-of-jobs-report-2025/ |
-| ECES Working Paper 241, Egyptian online job postings (pages 2-30) | Egyptian Center for Economic Studies | data Q4 2021 - Q4 2024 | no link recorded |
-| Labour market transitions of young women and men in Egypt | ILO | June 2014 (survey from 2012) | no link recorded |
+| ECES Working Paper 241, Egyptian online job postings (pages 2-30) | Egyptian Center for Economic Studies | data Q4 2021 - Q4 2024 | https://eces.org.eg/wp-content/uploads/2025/07/W-P-En-241.pdf |
+| Labour market transitions of young women and men in Egypt | ILO | June 2014 (survey from 2012) | https://www.ilo.org/sites/default/files/wcmsp5/groups/public/@dgreports/@dcomm/documents/publication/wcms_247596.pdf |
 | Egypt Jobs Issue Brief No. 4 (pages 1-2) | World Bank | c. 2014 | https://www.albankaldawli.org/content/dam/Worldbank/Feature%20Story/mena/Egypt/Egypt-Doc/egy-jobs-issue-brief-4-ENG-ARA.pdf |
 | The Complete Data Science Resume Guide in 2025 | 365 Data Science | 17 January 2025 | https://365datascience.com/data-science-resume/ |
 
