@@ -36,6 +36,8 @@ jobs:
     # CI regression gate: router + search checks on the golden set (no Ollama), compared with a CI-only
     # baseline. Defined in https://github.com/saeedelgaml/llm-regression-detection
     uses: saeedelgaml/llm-regression-detection/.github/workflows/eval.yml@main
+    secrets:
+      DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
 
   deploy:
     # Only the main branch is published, and only when every test and the regression gate passed.
