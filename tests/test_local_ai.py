@@ -173,3 +173,34 @@ def test_ordinary_operators_are_not_mistaken_for_functions():
                        "WHERE a.skill = 'Docker' AND b.skill IN ('Kubernetes') OR NOT a.skill LIKE 'x%' "
                        "AND a.skill BETWEEN 'A' AND 'Z'")
     assert "LIMIT 20" in sql
+
+
+# ---- values the model invents (a question about something the data does not hold) ----
+
+KNOWN = {"skill": {"docker": "Docker", "power bi": "Power BI"}, "role": {"data_scientist": "data_scientist"},
+         "city": {"cairo": "Cairo"}}
+
+
+def test_a_filter_on_a_real_value_is_kept_and_its_spelling_is_corrected():
+    from chatbot.local_ai import check_values
+    sql = check_values("SELECT COUNT(*) FROM job_skills WHERE skill = 'docker'", KNOWN)
+    assert "'Docker'" in sql
+    sql = check_values("SELECT COUNT(*) FROM job_skills WHERE skill IN ('power_bi', 'Docker')", KNOWN)
+    assert "'Power BI'" in sql and "'Docker'" in sql
+    assert "LIKE '%cobol%'" in check_values("SELECT title FROM jobs WHERE title LIKE '%cobol%'", KNOWN)
+
+
+def test_a_filter_on_an_invented_value_is_reported():
+    from chatbot.local_ai import UnknownValue, check_values
+    with pytest.raises(UnknownValue):
+        check_values("SELECT company FROM jobs j JOIN job_skills s ON s.job_id = j.job_id "
+                     "WHERE j.city = 'Cairo' AND s.skill IN ('university', 'cairo_university')", KNOWN)
+    with pytest.raises(UnknownValue):
+        check_values("SELECT COUNT(*) FROM jobs WHERE role = 'professor'", KNOWN)
+
+
+def test_a_question_about_something_not_in_the_data_is_refused_not_answered_with_no_rows(con):
+    model = lambda system, user: ("SELECT j.company, COUNT(*) AS postings FROM jobs j JOIN job_skills s ON "
+                                  "s.job_id = j.job_id WHERE s.skill IN ('university', 'cairo_university') GROUP BY j.company")
+    reply = LocalAI(con, ask_model=model)("Which Egyptian university has the best data science program?")
+    assert reply["ok"] is False and reply["function"] is None and "university" in reply["text"]
