@@ -115,7 +115,10 @@ def test_sources_are_complete_and_urls_are_only_the_ones_given():
     assert set(SOURCES) == {"wef-fojr-2025", "eces-wp241", "ilo-swts-egypt", "wb-egypt-brief4", "365ds-resume-guide"}
     for s in SOURCES.values():
         assert {"id", "title", "publisher", "year", "url", "filename", "pages"} <= set(s)
-    assert SOURCES["eces-wp241"]["url"] == "" and SOURCES["ilo-swts-egypt"]["url"] == ""
+    assert SOURCES["eces-wp241"]["url"] == "https://eces.org.eg/wp-content/uploads/2025/07/W-P-En-241.pdf"
+    assert SOURCES["ilo-swts-egypt"]["url"] == ("https://www.ilo.org/sites/default/files/wcmsp5/groups/public/"
+                                                "@dgreports/@dcomm/documents/publication/wcms_247596.pdf")
+    assert all(s["url"].startswith("https://") for s in SOURCES.values())  # every source now has a real link
 
 
 # ---- answer checks and routing with a fake model (always run) ------------------------------------
