@@ -65,6 +65,8 @@ BLOCKED_REPLY = "I only answer questions about the data jobs in this dataset, an
 GIVE_UP = ("I could not turn that into a safe query, so I will not guess. Try one of the example questions, "
            "or ask it another way.")
 
+NO_SUCH_VALUE = "I do not have data about {!r} in the job postings, so I will not guess."
+
 SYSTEM_PROMPT = (
     "You write ONE DuckDB SQL SELECT query that answers a question about a synthetic dataset of data job "
     "postings in Egypt. Reply with only the SQL, no explanation. Use only these tables and columns:\n"
@@ -104,6 +106,10 @@ class OllamaUnavailable(Exception):
 
 class UnsafeQuery(ValueError):
     """The SQL did not pass our checks. The message is safe to send back to the model."""
+
+
+class UnknownValue(ValueError):
+    """The SQL filters on a skill, role or city that is not in the data. str(error) is the invented value."""
 
 
 def _base_url(url=None):
@@ -212,6 +218,44 @@ def validate_sql(sql):
     return tree.sql(dialect="duckdb")
 
 
+def _filter_column(node):
+    """The skill/role/city column a comparison is about (LOWER(col) and UPPER(col) count too), or None."""
+    while isinstance(node, (exp.Lower, exp.Upper, exp.Paren)):
+        node = node.this
+    if isinstance(node, exp.Column) and node.name.lower() in ("skill", "role", "city"):
+        return node.name.lower()
+    return None
+
+
+def check_values(sql, known):
+    """Make sure every value the SQL compares skill, role or city with (= or IN) exists in the data.
+
+    known = {"skill": {lower-case name: real name}, "role": {...}, "city": {...}}. A value that differs only
+    in case, spaces or underscores is corrected ('docker' -> 'Docker'). A value that does not exist raises
+    UnknownValue: the model invented it because the question is about something the data does not hold
+    (asked about universities, it filtered on skill = 'cairo_university'), so no answer is better than
+    "no rows". Returns the SQL, corrected where needed."""
+    tree = sqlglot.parse_one(sql, read="duckdb")
+    for node in tree.find_all(exp.EQ, exp.NEQ, exp.In):
+        sides = [node.this, node.args.get("expression")] + list(node.args.get("expressions") or [])
+        sides = [side for side in sides if side is not None]
+        column = next((c for c in map(_filter_column, sides) if c), None)
+        if column is None:
+            continue
+        for side in sides:
+            if not (isinstance(side, exp.Literal) and side.is_string):
+                continue
+            key = side.this.lower().strip()
+            spellings = (key, key.replace("_", " "), key.replace(" ", "_"))
+            real = next((known[column][k] for k in spellings if k in known[column]), None)
+            if real is None:
+                raise UnknownValue(side.this)
+            wrapped = any(isinstance(other, (exp.Lower, exp.Upper)) for other in sides)
+            if side.this != real and not wrapped:  # LOWER(skill) = 'docker' already works as written
+                side.replace(exp.Literal.string(real))
+    return tree.sql(dialect="duckdb")
+
+
 def extract_sql(reply):
     """The SQL inside a model reply (it may be wrapped in a code fence)."""
     fenced = re.search(r"```(?:sql)?\s*(.*?)```", reply, re.DOTALL | re.IGNORECASE)
@@ -258,6 +302,10 @@ class LocalAI:
         schema = "\n".join(f"- {t}: " + "; ".join(f"{c} = {d}" for c, d in cols.items()) for t, cols in SCHEMA.items())
         examples = "\n".join(f"Q: {q}\nSQL: {s}" for q, s in EXAMPLES)
         self.system = SYSTEM_PROMPT.format(schema=schema, roles=roles, cities=", ".join(config.CITIES), examples=examples)
+        skills = [row[0] for row in con.execute("SELECT skill FROM skills").fetchall()]
+        self.known = {"skill": {name.lower(): name for name in skills},
+                      "role": {name.lower(): name for name in config.SEED_ROLES},
+                      "city": {name.lower(): name for name in config.CITIES}}
 
     @staticmethod
     def examples_text():
@@ -288,9 +336,11 @@ class LocalAI:
             for attempt in range(2):  # the model gets one chance to fix a failed query
                 reply = self.ask_model(self.system, prompt)
                 try:
-                    sql = validate_sql(extract_sql(reply))
+                    sql = check_values(validate_sql(extract_sql(reply)), self.known)
                     columns, rows = run_with_timeout(self.con, sql)
                     break
+                except UnknownValue as invented:
+                    return self._refuse(NO_SUCH_VALUE.format(str(invented)))
                 except (UnsafeQuery, Exception) as problem:
                     if isinstance(problem, OllamaUnavailable):
                         raise

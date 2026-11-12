@@ -130,6 +130,10 @@ ROLE_ASK_RE = _word(r"roles?|titles?|fields?|specializations?|specialisations?|j
 TIME_NOTE_RE = _word(r"today|yesterday|tonight|this week|last week|this month|last month|this year|"
                      r"last year|past week|past month|recently")
 
+# Words these patterns match were understood by a rule, so unused_words() does not count them.
+UNDERSTOOD_RES = [SALARY_RE, MOST_RE, COUNT_RE, SKILL_NOUN_RE, SKILL_NEED_RE, OTHERS_RE, COMPANY_RE, CITY_RE,
+                  NEW_RE, DOMAIN_RE, SENIORITY_RE, VOLUME_RE, BREAKDOWN_RE, ROLE_ASK_RE, ROLE_MOST_RE]
+
 GROUP_NOUNS = {
     "city": _word(r"cit(?:y|ies)|locations?|where|areas?|regions?"),
     "company": _word(r"compan(?:y|ies)|employers?|firms?|who pays?|who hires?|who is hiring|organi[sz]ations?"),
@@ -476,6 +480,28 @@ class RuleRouter:
                 if words:
                     return " ".join(words)
         return None
+
+    def unused_words(self, question):
+        """(words of the question that no rule used, True when a role, skill or city was named).
+
+        A fixed answer that leaves several words unused has ignored most of the question ("what % of
+        employers say skill gaps are the biggest barrier ..." was read as "top companies"). chatbot.ai uses
+        this to let the reports try first. Python only: the website has no reports, so the browser router
+        does not need it and the routing above is unchanged."""
+        text = self._fix_typos(_normalize(question))
+        named = False
+        for pattern, mapping in ((self._role_re, self._role_map), (self._skill_re, self._skill_map),
+                                 (self._city_re, self._city_map)):
+            found, text = self._find(pattern, mapping, text)
+            named = named or bool(found)
+        for step in (self._amount, self._days, self._limit):
+            _, text = step(text)
+        for pattern in UNDERSTOOD_RES:
+            text = pattern.sub(" ", text)
+        words = [w for w in re.findall(r"[a-z]{3,}", text)
+                 if w not in ALLOWED and w not in INTENT_SET and w not in self._vocabulary_set
+                 and w not in NUMBER_WORDS]
+        return list(dict.fromkeys(words)), named
 
     @staticmethod
     def _asks_group(text):
